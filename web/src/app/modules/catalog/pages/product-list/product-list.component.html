@@ -1,0 +1,61 @@
+<div class="catalog-container">
+  <aside class="sidebar">
+    <h3>Filtros</h3>
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+      <div class="form-group">
+        <label for="busqueda">Búsqueda</label>
+        <input type="text" id="busqueda" formControlName="busqueda" placeholder="Buscar producto...">
+      </div>
+
+      <div class="form-group">
+        <label for="categoria">Categoría</label>
+        <select id="categoria" formControlName="categoria">
+          <option value="">Todas</option>
+          <option *ngFor="let cat of categories" [value]="cat.nombre">{{ cat.nombre }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="marca">Marca</label>
+        <select id="marca" formControlName="marca">
+          <option value="">Todas</option>
+          <option *ngFor="let brand of brands" [value]="brand.nombre">{{ brand.nombre }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="talla">Talla</label>
+        <select id="talla" formControlName="talla">
+          <option value="">Todas</option>
+          <option *ngFor="let size of sizes" [value]="size.nombre">{{ size.nombre }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="color">Color</label>
+        <select id="color" formControlName="color">
+          <option value="">Todos</option>
+          <option *ngFor="let color of colors" [value]="color.nombre">{{ color.nombre }}</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Aplicar Filtros</button>
+      <button type="button" class="btn btn-block mt-1" (click)="clearFilters()">Limpiar</button>
+    </form>
+  </aside>
+
+  <main class="main-content">
+    <h2>Catálogo de Productos</h2>
+    <p class="result-count">{{ products.length }} productos encontrados</p>
+
+    <app-loading-spinner *ngIf="loading"></app-loading-spinner>
+
+    <div class="product-grid" *ngIf="!loading">
+      <app-product-card *ngFor="let product of products" [product]="product"></app-product-card>
+    </div>
+
+    <div class="empty-state" *ngIf="!loading && products.length === 0">
+      <p>No se encontraron productos con los filtros seleccionados.</p>
+    </div>
+  </main>
+</div>

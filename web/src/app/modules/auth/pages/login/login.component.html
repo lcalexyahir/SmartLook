@@ -1,0 +1,53 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1>SmartLook</h1>
+      <p>Inicia sesión para continuar</p>
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="correo">Correo Electrónico</label>
+        <input
+          type="email"
+          id="correo"
+          formControlName="correo"
+          placeholder="usuario@smartlook.com"
+          [class.error]="correoControl?.invalid && correoControl?.touched"
+        >
+        <div class="error-message" *ngIf="correoControl?.invalid && correoControl?.touched">
+          <span *ngIf="correoControl?.errors?.['required']">El correo es requerido.</span>
+          <span *ngIf="correoControl?.errors?.['email']">Ingrese un correo válido.</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input
+          type="password"
+          id="password"
+          formControlName="password"
+          placeholder="••••••••"
+          [class.error]="passwordControl?.invalid && passwordControl?.touched"
+        >
+        <div class="error-message" *ngIf="passwordControl?.invalid && passwordControl?.touched">
+          <span *ngIf="passwordControl?.errors?.['required']">La contraseña es requerida.</span>
+          <span *ngIf="passwordControl?.errors?.['minlength']">Mínimo 6 caracteres.</span>
+        </div>
+      </div>
+
+      <div class="alert alert-danger" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" [disabled]="loading || loginForm.invalid">
+        <app-loading-spinner *ngIf="loading" message="Iniciando..."></app-loading-spinner>
+        <span *ngIf="!loading">Iniciar Sesión</span>
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      <p>¿No tienes cuenta? <a routerLink="/auth/registro">Regístrate aquí</a></p>
+    </div>
+  </div>
+</div>

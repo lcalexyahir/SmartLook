@@ -1,0 +1,18 @@
+@import '../stock-list/stock-list.component.scss';
+
+.badge {
+  &.entrada {
+    background: #e8f5e9;
+    color: #4caf50;
+  }
+
+  &.salida {
+    background: #fdecea;
+    color: #f44336;
+  }
+
+  &.ajuste {
+    background: #fff3e0;
+    color: #ff9800;
+  }
+}

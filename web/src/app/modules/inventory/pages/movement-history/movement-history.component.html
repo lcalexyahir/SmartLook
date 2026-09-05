@@ -1,0 +1,38 @@
+<div class="inventory-container">
+  <h2>Historial de Movimientos</h2>
+
+  <app-loading-spinner *ngIf="loading"></app-loading-spinner>
+
+  <div class="table-container" *ngIf="!loading">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Sucursal</th>
+          <th>Variante</th>
+          <th>Usuario</th>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+          <th>Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let movement of movements">
+          <td>{{ movement.fecha_movimiento | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td>{{ movement.sucursal }}</td>
+          <td>{{ movement.variante }}</td>
+          <td>{{ movement.usuario }}</td>
+          <td>
+            <span class="badge" [class.entrada]="movement.tipo_movimiento === 'ENTRADA'"
+                              [class.salida]="movement.tipo_movimiento === 'SALIDA'"
+                              [class.ajuste]="movement.tipo_movimiento === 'AJUSTE'">
+              {{ movement.tipo_movimiento }}
+            </span>
+          </td>
+          <td>{{ movement.cantidad }}</td>
+          <td>{{ movement.motivo || 'N/A' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,64 @@
+<div class="store-container">
+  <div class="header">
+    <h2>Gestión de Proveedores</h2>
+    <button class="btn btn-primary" (click)="showForm = !showForm">
+      {{ showForm ? 'Cancelar' : 'Nuevo Proveedor' }}
+    </button>
+  </div>
+
+  <div class="card" *ngIf="showForm">
+    <h3>Registrar Proveedor</h3>
+    <form [formGroup]="supplierForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="empresa">Nombre Empresa</label>
+        <input type="text" id="empresa" formControlName="nombre_empresa" placeholder="Textiles Bolivia S.R.L.">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="contacto">Nombre Contacto</label>
+          <input type="text" id="contacto" formControlName="nombre_contacto" placeholder="Carlos Mendoza">
+        </div>
+        <div class="form-group">
+          <label for="telefono">Teléfono</label>
+          <input type="text" id="telefono" formControlName="telefono" placeholder="70000000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="correo">Correo</label>
+        <input type="email" id="correo" formControlName="correo" placeholder="ventas@empresa.com">
+      </div>
+      <div class="form-group">
+        <label for="direccion">Dirección</label>
+        <input type="text" id="direccion" formControlName="direccion" placeholder="Santa Cruz">
+      </div>
+      <button type="submit" class="btn btn-success" [disabled]="supplierForm.invalid">Guardar</button>
+    </form>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Empresa</th>
+          <th>Contacto</th>
+          <th>Teléfono</th>
+          <th>Correo</th>
+          <th>Dirección</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let supplier of suppliers">
+          <td>{{ supplier.nombre_empresa }}</td>
+          <td>{{ supplier.nombre_contacto || 'N/A' }}</td>
+          <td>{{ supplier.telefono || 'N/A' }}</td>
+          <td>{{ supplier.correo || 'N/A' }}</td>
+          <td>{{ supplier.direccion || 'N/A' }}</td>
+          <td>
+            <button class="btn btn-danger btn-sm" (click)="deleteSupplier(supplier.id_proveedor)">Eliminar</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

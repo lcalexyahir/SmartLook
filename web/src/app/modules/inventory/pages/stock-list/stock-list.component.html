@@ -1,0 +1,34 @@
+<div class="inventory-container">
+  <h2>Control de Stock</h2>
+
+  <app-loading-spinner *ngIf="loading"></app-loading-spinner>
+
+  <div class="table-container" *ngIf="!loading">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Sucursal</th>
+          <th>Variante</th>
+          <th>Cantidad</th>
+          <th>Stock Mínimo</th>
+          <th>Stock Máximo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of stockItems">
+          <td>{{ item.sucursal }}</td>
+          <td>{{ item.variante }}</td>
+          <td>{{ item.cantidad }}</td>
+          <td>{{ item.stock_minimo }}</td>
+          <td>{{ item.stock_maximo }}</td>
+          <td>
+            <span class="badge" [class.active]="item.estado" [class.inactive]="!item.estado">
+              {{ item.estado ? 'Activo' : 'Inactivo' }}
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

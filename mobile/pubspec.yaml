@@ -1,0 +1,45 @@
+name: smartlook_mobile
+description: SmartLook - Sistema omnicanal e-commerce y POS multi-sucursal
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  
+  # Estado
+  provider: ^6.1.1
+  
+  # Red
+  dio: ^5.4.0
+  connectivity_plus: ^6.0.2
+  
+  # Almacenamiento
+  shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.4
+  
+  # Utilidades
+  intl: ^0.19.0
+  cached_network_image: ^3.3.1
+  
+  # Formularios
+  flutter_form_builder: ^9.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/

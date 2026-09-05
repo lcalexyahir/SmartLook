@@ -1,0 +1,14 @@
+<div class="product-card">
+  <div class="product-image">
+    <img [src]="product.imagen_producto || 'assets/placeholder.png'" [alt]="product.nombre">
+  </div>
+  <div class="product-info">
+    <span class="product-brand">{{ product.marca?.nombre || 'SmartLook' }}</span>
+    <h4 class="product-name">{{ product.nombre }}</h4>
+    <p class="product-category">{{ product.categoria?.nombre }}</p>
+    <div class="product-footer">
+      <span class="product-price">{{ getPriceRange() }}</span>
+      <button class="btn btn-primary">Ver Detalle</button>
+    </div>
+  </div>
+</div>

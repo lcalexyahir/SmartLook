@@ -1,0 +1,12 @@
+@import '../login/login.component.scss';
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.alert-success {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
