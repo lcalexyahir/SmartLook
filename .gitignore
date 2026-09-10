@@ -20,3 +20,7 @@ android/local.properties
 web/.angular/
 web/node_modules/
 dist/
+
+# Environment
+.env
+.env.*

@@ -1,8 +1,8 @@
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from drf_spectacular.utils import extend_schema
 
@@ -10,6 +10,8 @@ from common.permissions import IsAdminEmpresa
 from .models import Usuario, Cliente, Rol, Permiso, Bitacora
 from .serializers import (
     UsuarioSerializer,
+    UsuarioCreateSerializer,
+    UsuarioUpdateSerializer,
     RegistroClienteSerializer,
     LoginSerializer,
     RolSerializer,
@@ -109,16 +111,36 @@ class LoginView(APIView):
         )
 
 
-class UsuarioViewSet(ReadOnlyModelViewSet):
-    queryset = Usuario.objects.all()
-    serializer_class = UsuarioSerializer
+class UsuarioViewSet(ModelViewSet):
+
+    queryset = Usuario.objects.prefetch_related(
+        "roles"
+    ).all()
+
+
     permission_classes = [IsAdminEmpresa]
+
+
+    def get_serializer_class(self):
+
+        if self.action == "create":
+            return UsuarioCreateSerializer
+
+
+        if self.action in [
+            "update",
+            "partial_update"
+        ]:
+            return UsuarioUpdateSerializer
+
+
+        return UsuarioSerializer
 
 
 class RolViewSet(ReadOnlyModelViewSet):
     queryset = Rol.objects.all()
     serializer_class = RolSerializer
-    permission_classes = [IsAdminEmpresa]
+    permission_classes = [IsAuthenticated]
 
 
 class PermisoViewSet(ReadOnlyModelViewSet):

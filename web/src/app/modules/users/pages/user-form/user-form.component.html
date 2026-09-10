@@ -1,0 +1,111 @@
+<div class="page">
+
+  <div class="header">
+    <h1>Nuevo Usuario</h1>
+  </div>
+
+
+  <div class="card">
+
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+
+
+      <div class="row">
+
+        <div class="field">
+          <label>Nombres</label>
+          <input 
+            type="text"
+            formControlName="nombres">
+        </div>
+
+
+        <div class="field">
+          <label>Apellidos</label>
+          <input 
+            type="text"
+            formControlName="apellidos">
+        </div>
+
+      </div>
+
+
+
+      <div class="row">
+
+        <div class="field">
+          <label>Correo</label>
+          <input 
+            type="email"
+            formControlName="correo">
+        </div>
+
+
+        <div class="field">
+          <label>Teléfono</label>
+          <input 
+            type="text"
+            formControlName="telefono">
+        </div>
+
+      </div>
+
+
+
+      <div class="row">
+
+        <div class="field">
+
+          <label>Contraseña</label>
+
+          <input
+            type="password"
+            formControlName="password">
+
+        </div>
+
+
+
+        <div class="field">
+
+          <label>Rol</label>
+
+          <select formControlName="rol">
+
+            <option value="">
+              Seleccione un rol
+            </option>
+
+
+            <option 
+              *ngFor="let rol of roles"
+              [value]="rol.id_rol">
+
+              {{ rol.nombre }}
+
+            </option>
+
+
+          </select>
+
+        </div>
+
+      </div>
+
+
+
+      <button 
+        class="btn-save"
+        type="submit"
+        [disabled]="form.invalid">
+
+        Guardar Usuario
+
+      </button>
+
+
+    </form>
+
+  </div>
+
+</div>

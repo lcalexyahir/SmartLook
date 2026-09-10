@@ -1,0 +1,139 @@
+<div class="layout">
+
+
+  <aside class="sidebar">
+
+
+    <div class="logo">
+
+      SmartLook
+
+    </div>
+
+
+
+    <nav>
+
+
+      <a routerLink="/dashboard">
+
+        🏠 Dashboard
+
+      </a>
+
+
+
+      <a routerLink="/catalog">
+
+        👕 Catálogo
+
+      </a>
+
+
+
+      <a routerLink="/inventory">
+
+        📦 Inventario
+
+      </a>
+
+
+
+      <a routerLink="/store">
+
+        🏢 Sucursales / Proveedores
+
+      </a>
+
+
+
+      <a routerLink="/users">
+        👥 Usuarios y Roles
+      </a>
+
+
+
+      <a>
+
+        🧑 Clientes
+
+      </a>
+
+
+
+      <a>
+
+        📜 Bitácora
+
+      </a>
+
+
+    </nav>
+
+
+  </aside>
+
+
+
+
+
+  <section class="content">
+
+
+    <header class="navbar">
+
+
+      <div>
+
+        Sistema SmartLook
+
+      </div>
+
+
+
+      <div class="user">
+
+
+        <span *ngIf="usuario">
+
+          {{ usuario.nombres }}
+          {{ usuario.apellidos }}
+
+          -
+          {{ usuario.roles[0]?.nombre }}
+
+        </span>
+
+
+
+        <button
+          (click)="cerrarSesion()">
+
+          Cerrar sesión
+
+        </button>
+
+
+      </div>
+
+
+    </header>
+
+
+
+
+
+    <main>
+
+
+      <router-outlet></router-outlet>
+
+
+    </main>
+
+
+  </section>
+
+
+
+</div>

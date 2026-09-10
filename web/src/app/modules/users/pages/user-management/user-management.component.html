@@ -1,0 +1,150 @@
+<div class="page">
+
+  <div class="header">
+
+    <div>
+      <h1>Usuarios y Roles</h1>
+      <p>Administración de usuarios del sistema</p>
+    </div>
+
+
+    <button 
+      class="btn-new"
+      routerLink="/users/nuevo">
+
+      + Nuevo Usuario
+
+    </button>
+
+  </div>
+
+
+
+  <div class="card">
+
+
+    <table>
+
+
+      <thead>
+
+        <tr>
+
+          <th>Usuario</th>
+
+          <th>Correo</th>
+
+          <th>Roles</th>
+
+          <th>Estado</th>
+
+          <th>Fecha creación</th>
+
+        </tr>
+
+      </thead>
+
+
+
+      <tbody>
+
+
+        <tr *ngFor="let usuario of usuarios">
+
+
+          <td>
+
+            <strong>
+              {{ usuario.nombres }}
+              {{ usuario.apellidos }}
+            </strong>
+
+          </td>
+
+
+
+          <td>
+
+            {{ usuario.correo }}
+
+          </td>
+
+
+
+          <td>
+
+
+            <span 
+              class="rol"
+              *ngFor="let rol of usuario.roles">
+
+              {{ rol.nombre }}
+
+            </span>
+
+
+            <span 
+              *ngIf="!usuario.roles || usuario.roles.length === 0">
+
+              Sin rol asignado
+
+            </span>
+
+
+          </td>
+
+
+
+          <td>
+
+
+            <span
+              class="estado"
+              [class.inactivo]="usuario.estado !== 'ACTIVO'">
+
+              {{ usuario.estado }}
+
+            </span>
+
+
+          </td>
+
+
+
+          <td>
+
+            {{ usuario.fecha_creacion | date:'dd/MM/yyyy' }}
+
+          </td>
+
+
+
+        </tr>
+
+
+
+        <tr *ngIf="usuarios.length === 0">
+
+
+          <td 
+            colspan="5"
+            class="empty">
+
+            No existen usuarios registrados.
+
+          </td>
+
+
+        </tr>
+
+
+      </tbody>
+
+
+    </table>
+
+
+  </div>
+
+
+</div>
