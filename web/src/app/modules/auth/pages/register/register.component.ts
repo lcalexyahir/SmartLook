@@ -13,6 +13,8 @@ export class RegisterComponent implements OnInit {
   loading = false;
   successMessage: string | null = null;
   errorMessage: string | null = null;
+  mostrarPassword = false;
+  mostrarPasswordConfirm = false;
 
   constructor(
     private fb: FormBuilder,

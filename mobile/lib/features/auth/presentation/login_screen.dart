@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/utils/validators.dart';
@@ -49,6 +50,34 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  InputDecoration _inputDecoration({required String label, required IconData icon, Widget? suffixIcon}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.textDark, fontWeight: FontWeight.w500),
+      prefixIcon: Icon(icon, color: AppColors.grey, size: 20),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: AppColors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: AppColors.line),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: AppColors.line),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: AppColors.danger),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
@@ -60,9 +89,8 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.primary,
-              AppColors.secondary,
-              AppColors.accent,
+              AppColors.bgDeep,
+              AppColors.bgDeep2,
             ],
           ),
         ),
@@ -71,60 +99,54 @@ class _LoginScreenState extends State<LoginScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.panelBg,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
                 ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.shopping_bag,
-                        size: 60,
-                        color: AppColors.primary,
+                      Image.asset(
+                        'assets/images/logotipo-smartlook.jpeg',
+                        height: 40,
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'SmartLook',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
+                      const SizedBox(height: 10),
+                      Text(
                         'Inicia sesión para continuar',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.grey,
-                        ),
+                        style: GoogleFonts.inter(fontSize: 14, color: AppColors.grey),
                       ),
                       const SizedBox(height: 24),
                       TextFormField(
                         controller: _correoController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo Electrónico',
-                          prefixIcon: Icon(Icons.email),
-                        ),
+                        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                        decoration: _inputDecoration(label: 'Correo Electrónico', icon: Icons.email_outlined),
                         validator: Validators.email,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Contraseña',
-                          prefixIcon: const Icon(Icons.lock),
+                        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                        decoration: _inputDecoration(
+                          label: 'Contraseña',
+                          icon: Icons.lock_outline,
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
+                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: AppColors.grey,
+                              size: 20,
                             ),
                             onPressed: () {
                               setState(() {
@@ -136,18 +158,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: Validators.password,
                       ),
                       const SizedBox(height: 24),
-                      CustomButton(
-                        text: 'Iniciar Sesión',
-                        isLoading: authService.isLoading,
-                        onPressed: _handleLogin,
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomButton(
+                          text: 'Iniciar Sesión',
+                          isLoading: authService.isLoading,
+                          onPressed: _handleLogin,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             '¿No tienes cuenta? ',
-                            style: TextStyle(color: AppColors.grey),
+                            style: GoogleFonts.inter(fontSize: 13, color: AppColors.grey),
                           ),
                           GestureDetector(
                             onTap: () {
@@ -158,9 +183,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               );
                             },
-                            child: const Text(
+                            child: Text(
                               'Regístrate aquí',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
                                 color: AppColors.accent,
                                 fontWeight: FontWeight.w600,
                               ),

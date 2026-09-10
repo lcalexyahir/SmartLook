@@ -1,139 +1,88 @@
 <div class="layout">
-
-
   <aside class="sidebar">
-
-
-    <div class="logo">
-
-      SmartLook
-
-    </div>
-
-
+    <div class="logo">SmartLook</div>
 
     <nav>
-
-
-      <a routerLink="/dashboard">
-
-        🏠 Dashboard
-
+      <a routerLink="/dashboard" class="nav-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 11.5 12 4l8 7.5"/>
+          <path d="M6 10v9h5v-6h2v6h5v-9"/>
+        </svg>
+        <span>Dashboard</span>
       </a>
 
-
-
-      <a routerLink="/catalog">
-
-        👕 Catálogo
-
+      <a routerLink="/catalog" class="nav-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v3"/>
+          <path d="M4 10 12 6l8 4-3 2H7z"/>
+          <path d="M7 12 4 20h16l-3-8"/>
+        </svg>
+        <span>Catálogo</span>
       </a>
 
-
-
-      <a routerLink="/inventory">
-
-        📦 Inventario
-
+      <a routerLink="/inventory" class="nav-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 8 12 4l8 4-8 4z"/>
+          <path d="M4 8v9l8 4 8-4V8"/>
+          <path d="M12 12v9"/>
+        </svg>
+        <span>Inventario</span>
       </a>
 
-
-
-      <a routerLink="/store">
-
-        🏢 Sucursales / Proveedores
-
+      <a routerLink="/store" class="nav-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 21V10l7-6 7 6v11"/>
+          <path d="M9 21v-6h6v6"/>
+        </svg>
+        <span>Sucursales / Proveedores</span>
       </a>
 
-
-
-      <a routerLink="/users">
-        👥 Usuarios y Roles
+      <a routerLink="/users" class="nav-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="8" r="3"/>
+          <path d="M3 20c0-3 2.5-5 6-5s6 2 6 5"/>
+          <path d="M16 8a3 3 0 1 0 0-6"/>
+          <path d="M15 15c3 0 5.5 2 6 5"/>
+        </svg>
+        <span>Usuarios y Roles</span>
       </a>
 
-
-
-      <a>
-
-        🧑 Clientes
-
+      <a class="nav-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="8" r="3.5"/>
+          <path d="M5 21c0-3.5 3-6.5 7-6.5s7 3 7 6.5"/>
+        </svg>
+        <span>Clientes</span>
       </a>
 
-
-
-      <a>
-
-        📜 Bitácora
-
+      <a class="nav-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 3h9l3 3v15H6z"/>
+          <path d="M9 9h6M9 13h6M9 17h4"/>
+        </svg>
+        <span>Bitácora</span>
       </a>
-
-
     </nav>
-
-
   </aside>
 
-
-
-
-
   <section class="content">
-
-
     <header class="navbar">
-
-
-      <div>
-
-        Sistema SmartLook
-
-      </div>
-
-
+      <div class="navbar-title">SmartLook</div>
 
       <div class="user">
-
-
-        <span *ngIf="usuario">
-
+        <span *ngIf="usuario" class="user-info">
           {{ usuario.nombres }}
           {{ usuario.apellidos }}
-
           -
           {{ usuario.roles[0]?.nombre }}
-
         </span>
 
-
-
-        <button
-          (click)="cerrarSesion()">
-
-          Cerrar sesión
-
-        </button>
-
-
+        <button (click)="cerrarSesion()">Cerrar sesión</button>
       </div>
-
-
     </header>
 
-
-
-
-
     <main>
-
-
       <router-outlet></router-outlet>
-
-
     </main>
-
-
   </section>
-
-
-
 </div>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/utils/validators.dart';
@@ -87,143 +88,224 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  InputDecoration _inputDecoration({required String label, required IconData icon, Widget? suffixIcon}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.textDark, fontWeight: FontWeight.w500),
+      prefixIcon: Icon(icon, color: AppColors.grey, size: 20),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: AppColors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: AppColors.line),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: AppColors.line),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: AppColors.danger),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
 
     return Scaffold(
+      backgroundColor: AppColors.bgDeep,
       appBar: AppBar(
-        title: const Text('Registro'),
+        backgroundColor: AppColors.bgDeep,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.panelBg),
+        title: Text(
+          'Registro',
+          style: GoogleFonts.fraunces(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: AppColors.panelBg,
+          ),
+        ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.bgDeep,
+              AppColors.bgDeep2,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.panelBg,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _nombresController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombres',
-                          prefixIcon: Icon(Icons.person),
-                        ),
-                        validator: Validators.required,
+                    Text(
+                      'SmartLook',
+                      style: GoogleFonts.fraunces(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textDark,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _apellidosController,
-                        decoration: const InputDecoration(
-                          labelText: 'Apellidos',
-                          prefixIcon: Icon(Icons.person_outline),
-                        ),
-                        validator: Validators.required,
-                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Crea tu cuenta como cliente',
+                      style: GoogleFonts.inter(fontSize: 13, color: AppColors.grey),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _correoController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo Electrónico',
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  validator: Validators.email,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _telefonoController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Teléfono (Opcional)',
-                    prefixIcon: Icon(Icons.phone),
-                  ),
-                  validator: Validators.phone,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Contraseña',
-                          prefixIcon: const Icon(Icons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _nombresController,
+                            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                            decoration: _inputDecoration(label: 'Nombres', icon: Icons.person_outline),
+                            validator: Validators.required,
                           ),
                         ),
-                        validator: Validators.password,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _passwordConfirmController,
-                        obscureText: _obscurePasswordConfirm,
-                        decoration: InputDecoration(
-                          labelText: 'Confirmar',
-                          prefixIcon: const Icon(Icons.lock_outline),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _apellidosController,
+                            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                            decoration: _inputDecoration(label: 'Apellidos', icon: Icons.person_outline),
+                            validator: Validators.required,
+                          ),
                         ),
-                        validator: Validators.password,
-                      ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _correoController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                      decoration: _inputDecoration(label: 'Correo Electrónico', icon: Icons.email_outlined),
+                      validator: Validators.email,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _telefonoController,
+                      keyboardType: TextInputType.phone,
+                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                      decoration: _inputDecoration(label: 'Teléfono (Opcional)', icon: Icons.phone_outlined),
+                      validator: Validators.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                            decoration: _inputDecoration(
+                              label: 'Contraseña',
+                              icon: Icons.lock_outline,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  color: AppColors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
+                            validator: Validators.password,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _passwordConfirmController,
+                            obscureText: _obscurePasswordConfirm,
+                            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                            decoration: _inputDecoration(
+                              label: 'Confirmar',
+                              icon: Icons.lock_outline,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePasswordConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  color: AppColors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePasswordConfirm = !_obscurePasswordConfirm;
+                                  });
+                                },
+                              ),
+                            ),
+                            validator: Validators.password,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _direccionController,
+                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                      decoration: _inputDecoration(label: 'Dirección (Opcional)', icon: Icons.location_on_outlined),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _fechaNacimientoController,
+                      readOnly: true,
+                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark),
+                      decoration: _inputDecoration(label: 'Fecha de Nacimiento (Opcional)', icon: Icons.calendar_today_outlined),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime(2000),
+                          firstDate: DateTime(1950),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          _fechaNacimientoController.text =
+                              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    CustomButton(
+                      text: 'Registrarse',
+                      isLoading: authService.isLoading,
+                      onPressed: _handleRegister,
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _direccionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Dirección (Opcional)',
-                    prefixIcon: Icon(Icons.location_on),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _fechaNacimientoController,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Fecha de Nacimiento (Opcional)',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime(2000),
-                      firstDate: DateTime(1950),
-                      lastDate: DateTime.now(),
-                    );
-                    if (date != null) {
-                      _fechaNacimientoController.text =
-                          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-                    }
-                  },
-                ),
-                const SizedBox(height: 24),
-                CustomButton(
-                  text: 'Registrarse',
-                  isLoading: authService.isLoading,
-                  onPressed: _handleRegister,
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -1,5 +1,21 @@
 @import '../login/login.component.scss';
 
+.auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--panel-bg);
+  padding: 2.5rem;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -7,6 +23,12 @@
 }
 
 .alert-success {
-  background-color: #e8f5e9;
-  color: #4caf50;
+  background-color: #EAF3E8;
+  color: #4C7A43;
+}
+
+@media (max-width: 640px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
 }

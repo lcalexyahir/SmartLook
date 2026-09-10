@@ -41,5 +41,5 @@ flutter:
   uses-material-design: true
   
   assets:
-    - assets/images/
+    - assets/images/logotipo-smartlook.jpeg
     - assets/icons/
