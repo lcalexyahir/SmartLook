@@ -39,7 +39,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacementNamed(context, '/catalog');
+      // Antes: siempre navegaba a '/catalog'. Ahora depende del rol.
+      final esSuperAdmin = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
+
+      if (esSuperAdmin) {
+        Navigator.pushReplacementNamed(context, '/admin');
+      } else {
+        Navigator.pushReplacementNamed(context, '/catalog');
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

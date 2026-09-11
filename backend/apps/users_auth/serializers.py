@@ -1,5 +1,9 @@
+import re
+from datetime import date
+
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
+from django.db import transaction
 
 from .models import (
     Usuario,
@@ -8,7 +12,6 @@ from .models import (
     Permiso,
     Bitacora
 )
-
 
 
 class RolSerializer(serializers.ModelSerializer):
@@ -24,7 +27,6 @@ class RolSerializer(serializers.ModelSerializer):
         ]
 
 
-
 class PermisoSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -38,7 +40,6 @@ class PermisoSerializer(serializers.ModelSerializer):
         ]
 
 
-
 # ==========================
 # LISTAR USUARIOS
 # ==========================
@@ -49,7 +50,6 @@ class UsuarioSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-
 
     class Meta:
 
@@ -68,7 +68,6 @@ class UsuarioSerializer(serializers.ModelSerializer):
         ]
 
 
-
 # ==========================
 # CREAR USUARIOS
 # ==========================
@@ -79,12 +78,10 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         write_only=True
     )
 
-
     rol = serializers.PrimaryKeyRelatedField(
         queryset=Rol.objects.all(),
         write_only=True
     )
-
 
     class Meta:
 
@@ -100,18 +97,15 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         ]
 
 
-
     def create(self, validated_data):
 
         rol = validated_data.pop(
             "rol"
         )
 
-
         password = validated_data.pop(
             "password"
         )
-
 
         usuario = Usuario.objects.create(
 
@@ -125,9 +119,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
 
         )
 
-
         from .models import UsuarioRol
-
 
         UsuarioRol.objects.create(
 
@@ -137,9 +129,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
 
         )
 
-
         return usuario
-
 
 
 # ==========================
@@ -153,13 +143,11 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
         required=False
     )
 
-
     rol = serializers.PrimaryKeyRelatedField(
         queryset=Rol.objects.all(),
         write_only=True,
         required=False
     )
-
 
     class Meta:
 
@@ -176,7 +164,6 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
         ]
 
 
-
     def update(self, instance, validated_data):
 
         rol = validated_data.pop(
@@ -184,12 +171,10 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
             None
         )
 
-
         password = validated_data.pop(
             "password",
             None
         )
-
 
         for campo, valor in validated_data.items():
 
@@ -199,27 +184,22 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
                 valor
             )
 
-
         if password:
 
             instance.password_hash = make_password(
                 password
             )
 
-
         instance.save()
-
 
 
         if rol:
 
             from .models import UsuarioRol
 
-
             UsuarioRol.objects.filter(
                 id_usuario=instance
             ).delete()
-
 
             UsuarioRol.objects.create(
 
@@ -229,39 +209,39 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
 
             )
 
-
         return instance
 
 
 
+# ==========================
+# REGISTRO CLIENTE (CU01)
+# ==========================
 
-# ==========================
-# REGISTRO CLIENTE
-# ==========================
+EDAD_MINIMA_CLIENTE = 13
+# Bolivia: 8 dígitos, inicia en 6 o 7. Admite prefijo +591 opcional.
+TELEFONO_REGEX = re.compile(r'^[67]\d{7}$')
+
 
 class RegistroClienteSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(
-        write_only=True
+        write_only=True,
+        min_length=8
     )
-
 
     password_confirm = serializers.CharField(
         write_only=True
     )
-
 
     direccion = serializers.CharField(
         required=False,
         allow_blank=True
     )
 
-
     fecha_nacimiento = serializers.DateField(
         required=False,
         allow_null=True
     )
-
 
     class Meta:
 
@@ -278,18 +258,53 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
             "fecha_nacimiento"
         ]
 
+    # ---- RN2: fortaleza de contraseña ----
+    def validate_password(self, valor):
+        if not re.search(r'[A-Za-z]', valor) or not re.search(r'\d', valor):
+            raise serializers.ValidationError(
+                "La contraseña debe contener al menos una letra y un número."
+            )
+        return valor
 
+    # ---- RN7: formato de teléfono boliviano (solo si viene informado) ----
+    def validate_telefono(self, valor):
+        if not valor:
+            return valor
+        limpio = valor.strip().replace(" ", "").replace("-", "")
+        if limpio.startswith("+591"):
+            limpio = limpio[4:]
+        elif limpio.startswith("591"):
+            limpio = limpio[3:]
+        if not TELEFONO_REGEX.match(limpio):
+            raise serializers.ValidationError(
+                "El teléfono debe tener 8 dígitos y comenzar con 6 o 7 "
+                "(formato boliviano), con o sin prefijo +591."
+            )
+        return limpio
+
+    # ---- RN8: cliente debe ser mayor de 13 años (solo si viene informado) ----
+    def validate_fecha_nacimiento(self, valor):
+        if valor is None:
+            return valor
+        hoy = date.today()
+        edad = hoy.year - valor.year - (
+            (hoy.month, hoy.day) < (valor.month, valor.day)
+        )
+        if edad < EDAD_MINIMA_CLIENTE:
+            raise serializers.ValidationError(
+                f"El cliente debe tener al menos {EDAD_MINIMA_CLIENTE} años."
+            )
+        return valor
 
     def validate(self, attrs):
 
         if attrs["password"] != attrs["password_confirm"]:
 
             raise serializers.ValidationError(
-                "Las contraseñas no coinciden"
+                {"password_confirm": "Las contraseñas no coinciden"}
             )
 
         return attrs
-
 
 
     def create(self, validated_data):
@@ -298,71 +313,73 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
             "password_confirm"
         )
 
-
         direccion = validated_data.pop(
             "direccion",
             None
         )
-
 
         fecha = validated_data.pop(
             "fecha_nacimiento",
             None
         )
 
+        # RN9: creación atómica de Usuario + Cliente + UsuarioRol
+        with transaction.atomic():
 
-        usuario = Usuario.objects.create(
+            usuario = Usuario.objects.create(
 
-            nombres=validated_data["nombres"],
+                nombres=validated_data["nombres"],
 
-            apellidos=validated_data["apellidos"],
+                apellidos=validated_data["apellidos"],
 
-            correo=validated_data["correo"],
+                correo=validated_data["correo"],
 
-            telefono=validated_data.get(
-                "telefono",
-                ""
-            ),
+                telefono=validated_data.get(
+                    "telefono",
+                    ""
+                ),
 
-            password_hash=make_password(
-                validated_data["password"]
-            ),
+                password_hash=make_password(
+                    validated_data["password"]
+                ),
 
-            estado="ACTIVO"
+                estado="ACTIVO"
 
-        )
+            )
 
+            from .models import UsuarioRol
 
-        from .models import UsuarioRol
+            # RN6: si el rol CLIENTE no existe, se crea en vez de fallar.
+            rol_cliente, _creado = Rol.objects.get_or_create(
+                nombre="CLIENTE",
+                defaults={
+                    "descripcion": (
+                        "Rol asignado automáticamente a los usuarios que "
+                        "se registran públicamente como clientes."
+                    ),
+                    "estado": True,
+                },
+            )
 
+            UsuarioRol.objects.create(
 
-        rol_cliente = Rol.objects.get(
-            nombre="CLIENTE"
-        )
+                id_usuario=usuario,
 
+                id_rol=rol_cliente
 
-        UsuarioRol.objects.create(
+            )
 
-            id_usuario=usuario,
+            Cliente.objects.create(
 
-            id_rol=rol_cliente
+                id_usuario=usuario,
 
-        )
+                direccion=direccion,
 
+                fecha_nacimiento=fecha
 
-        Cliente.objects.create(
-
-            id_usuario=usuario,
-
-            direccion=direccion,
-
-            fecha_nacimiento=fecha
-
-        )
-
+            )
 
         return usuario
-
 
 
 
@@ -376,11 +393,9 @@ class LoginSerializer(serializers.Serializer):
 
 
 
-
 class BitacoraSerializer(serializers.ModelSerializer):
 
     usuario = serializers.SerializerMethodField()
-
 
 
     class Meta:
@@ -399,7 +414,6 @@ class BitacoraSerializer(serializers.ModelSerializer):
             "direccion_ip",
             "fecha_evento"
         ]
-
 
 
     def get_usuario(self, obj):

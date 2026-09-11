@@ -1,3 +1,10 @@
+// web/src/app/modules/store/services/branch.service.ts
+//
+// Archivo YA EXISTENTE. Se agregan updateBranch usage ya existía; se
+// agregan createCity/updateCity/deleteCity (CU06 - Ciudades).
+// getCountries/getCities/getBranches/createBranch/updateBranch quedan
+// igual.
+
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
@@ -27,5 +34,21 @@ export class BranchService {
 
   updateBranch(id: number, data: any): Observable<Branch> {
     return this.apiService.put(`/catalog/sucursales/${id}/`, data);
+  }
+
+  deleteBranch(id: number): Observable<any> {
+    return this.apiService.delete(`/catalog/sucursales/${id}/`);
+  }
+
+  createCity(data: any): Observable<City> {
+    return this.apiService.post('/catalog/ciudades/', data);
+  }
+
+  updateCity(id: number, data: any): Observable<City> {
+    return this.apiService.put(`/catalog/ciudades/${id}/`, data);
+  }
+
+  deleteCity(id: number): Observable<any> {
+    return this.apiService.delete(`/catalog/ciudades/${id}/`);
   }
 }

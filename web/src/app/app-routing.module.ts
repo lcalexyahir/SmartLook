@@ -1,3 +1,7 @@
+// web/src/app/app-routing.module.ts
+//
+// Único cambio: se agrega la ruta 'clients'.
+
 import { NgModule } from '@angular/core';
 
 import {
@@ -5,13 +9,12 @@ import {
   Routes
 } from '@angular/router';
 
-
 import { LayoutComponent } from './layout/layout.component';
-
+import { AuthGuard } from './core/auth/auth.guard';
+import { RoleGuard } from './core/auth/role.guard';
 
 
 const routes: Routes = [
-
 
   {
     path: 'auth',
@@ -19,7 +22,6 @@ const routes: Routes = [
       import('./modules/auth/auth.module')
         .then(m => m.AuthModule)
   },
-
 
   {
     path: '',
@@ -29,11 +31,12 @@ const routes: Routes = [
 
       {
         path: 'dashboard',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
         loadChildren: () =>
           import('./modules/dashboard/dashboard.module')
             .then(m => m.DashboardModule)
       },
-
 
       {
         path: 'catalog',
@@ -42,17 +45,19 @@ const routes: Routes = [
             .then(m => m.CatalogModule)
       },
 
-
       {
         path: 'inventory',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
         loadChildren: () =>
           import('./modules/inventory/inventory.module')
             .then(m => m.InventoryModule)
       },
 
-
       {
         path: 'store',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
         loadChildren: () =>
           import('./modules/store/store.module')
             .then(m => m.StoreModule)
@@ -60,15 +65,77 @@ const routes: Routes = [
 
       {
         path: 'users',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
         loadChildren: () =>
           import('./modules/users/users.module')
             .then(m => m.UsersModule)
+      },
+
+      {
+        path: 'permissions',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
+        loadChildren: () =>
+          import('./modules/permissions/permissions.module')
+            .then(m => m.PermissionsModule)
+      },
+
+      {
+        path: 'bitacora',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
+        loadChildren: () =>
+          import('./modules/bitacora/bitacora.module')
+            .then(m => m.BitacoraModule)
+      },
+
+      {
+        path: 'clients',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
+        loadChildren: () =>
+          import('./modules/clients/clients.module')
+            .then(m => m.ClientsModule)
+      },
+
+      {
+        path: 'attributes',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
+        loadChildren: () =>
+          import('./modules/attributes/attributes.module')
+            .then(m => m.AttributesModule)
+      },
+
+      {
+        path: 'products',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
+        loadChildren: () =>
+          import('./modules/products/products.module')
+            .then(m => m.ProductsModule)
+      },
+
+      {
+        path: 'reservations',
+        canActivate: [AuthGuard],
+        loadChildren: () =>
+          import('./modules/reservations/reservations.module')
+            .then(m => m.ReservationsModule)
+      },
+
+      {
+        path: 'profile',
+        canActivate: [AuthGuard],
+        loadChildren: () =>
+          import('./modules/profile/profile.module')
+            .then(m => m.ProfileModule)
       }
 
     ]
 
   },
-
 
   {
     path: '',
@@ -76,14 +143,12 @@ const routes: Routes = [
     pathMatch: 'full'
   },
 
-
   {
     path: '**',
     redirectTo: 'auth/login'
   }
 
 ];
-
 
 
 @NgModule({
@@ -97,4 +162,4 @@ const routes: Routes = [
   ]
 
 })
-export class AppRoutingModule {}
+export class AppRoutingModule { }

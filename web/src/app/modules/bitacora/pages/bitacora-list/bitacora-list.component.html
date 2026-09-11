@@ -1,0 +1,40 @@
+<!-- web/src/app/modules/bitacora/pages/bitacora-list/bitacora-list.component.html -->
+<div class="bitacora-container">
+  <div class="header">
+    <h2>Bitácora del Sistema</h2>
+    <input
+      type="text"
+      placeholder="Filtrar por acción (ej: LOGIN, REGISTRO_CLIENTE)..."
+      [(ngModel)]="filtroAccion">
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Usuario</th>
+          <th>Acción</th>
+          <th>Tabla</th>
+          <th>Descripción</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let evento of eventosFiltrados">
+          <td>{{ evento.fecha_evento | date:'dd/MM/yyyy HH:mm:ss':'-0400' }}</td>
+          <td>{{ evento.usuario || 'Sistema / Anónimo' }}</td>
+          <td>
+            <span class="badge-accion">{{ evento.accion }}</span>
+          </td>
+          <td>{{ evento.tabla_afectada }}</td>
+          <td>{{ evento.descripcion }}</td>
+          <td>{{ evento.direccion_ip || 'N/A' }}</td>
+        </tr>
+        <tr *ngIf="!loading && eventosFiltrados.length === 0">
+          <td colspan="6">No hay eventos registrados.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,9 +1,14 @@
+// web/src/app/layout/layout.component.ts
+//
+// Único cambio: se agrega la propiedad esCliente, calculada con
+// authService.esCliente(), para que la plantilla oculte las opciones
+// administrativas cuando corresponda.
+
 import { Component } from '@angular/core';
 
 import { Router } from '@angular/router';
 
 import { AuthService } from '../core/auth/auth.service';
-
 
 
 @Component({
@@ -17,9 +22,8 @@ import { AuthService } from '../core/auth/auth.service';
 })
 export class LayoutComponent {
 
-
   usuario: any = null;
-
+  esCliente = false;
 
   constructor(
 
@@ -29,9 +33,7 @@ export class LayoutComponent {
 
   ) {
 
-
     const data = localStorage.getItem('usuario');
-
 
     if (data) {
 
@@ -39,19 +41,16 @@ export class LayoutComponent {
 
     }
 
+    this.esCliente = this.authService.esCliente();
 
   }
-
 
 
   cerrarSesion(): void {
 
-
     this.authService.logout();
 
-
   }
-
 
 
 }

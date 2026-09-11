@@ -8,11 +8,14 @@ class SmartLookJWTAuthentication(JWTAuthentication):
 
     def get_user(self, validated_token):
 
-        user_id = validated_token.get("user_id")
+        # El token de SmartLook guarda el id del usuario bajo la clave
+        # "id_usuario" (ver services.py -> AuthService.generar_tokens),
+        # no bajo "user_id" (que es el nombre por defecto de SimpleJWT).
+        user_id = validated_token.get("id_usuario")
 
         if not user_id:
             raise AuthenticationFailed(
-                "Token no contiene identificación de usuario"
+                "El token no contiene identificación de usuario"
             )
 
         try:

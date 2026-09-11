@@ -1,3 +1,9 @@
+// web/src/app/modules/store/pages/branch-management/branch-management.component.ts
+//
+// Archivo YA EXISTENTE. Se agrega edición y eliminación (antes
+// onSubmit() solo llamaba a createBranch(), nunca a updateBranch()
+// aunque el servicio ya lo tenía).
+
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BranchService } from '../../services/branch.service';
@@ -15,6 +21,8 @@ export class BranchManagementComponent implements OnInit {
   branchForm!: FormGroup;
   loading = false;
   showForm = false;
+  editandoId: number | null = null;
+  errorMessage: string | null = null;
 
   constructor(
     private branchService: BranchService,
@@ -58,16 +66,59 @@ export class BranchManagementComponent implements OnInit {
     });
   }
 
+  nuevaSucursal(): void {
+    this.editandoId = null;
+    this.errorMessage = null;
+    this.branchForm.reset();
+    this.showForm = true;
+  }
+
+  editarSucursal(branch: any): void {
+    this.editandoId = branch.id_sucursal;
+    this.errorMessage = null;
+    this.branchForm.patchValue({
+      id_ciudad: branch.ciudad?.id_ciudad,
+      nombre: branch.nombre,
+      direccion: branch.direccion,
+      telefono: branch.telefono,
+      fecha_apertura: branch.fecha_apertura
+    });
+    this.showForm = true;
+  }
+
+  cancelar(): void {
+    this.showForm = false;
+    this.editandoId = null;
+    this.errorMessage = null;
+    this.branchForm.reset();
+  }
+
   onSubmit(): void {
     if (this.branchForm.invalid) return;
+    this.errorMessage = null;
 
-    this.branchService.createBranch(this.branchForm.value).subscribe({
+    const peticion = this.editandoId
+      ? this.branchService.updateBranch(this.editandoId, this.branchForm.value)
+      : this.branchService.createBranch(this.branchForm.value);
+
+    peticion.subscribe({
       next: () => {
-        this.showForm = false;
-        this.branchForm.reset();
+        this.cancelar();
         this.loadData();
       },
-      error: () => {}
+      error: (err) => {
+        this.errorMessage = err.error?.nombre?.[0]
+          || err.error?.id_ciudad?.[0]
+          || 'No se pudo guardar la sucursal.';
+      }
+    });
+  }
+
+  eliminarSucursal(branch: any): void {
+    if (!confirm(`¿Eliminar la sucursal "${branch.nombre}"?`)) return;
+    this.branchService.deleteBranch(branch.id_sucursal).subscribe({
+      next: () => this.loadData(),
+      error: () => this.errorMessage = 'No se pudo eliminar la sucursal.'
     });
   }
 }

@@ -2,7 +2,6 @@ from .models import Usuario, Bitacora
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.tokens import RefreshToken
 
-
 class AuthService:
 
     @staticmethod
@@ -21,7 +20,6 @@ class AuthService:
 
         return None
 
-
     @staticmethod
     def generar_tokens(usuario):
         """
@@ -32,7 +30,7 @@ class AuthService:
 
         refresh = RefreshToken()
 
-        refresh["user_id"] = usuario.id_usuario
+        refresh["id_usuario"] = usuario.id_usuario
         refresh["correo"] = usuario.correo
         refresh["nombre"] = f"{usuario.nombres} {usuario.apellidos}"
 
@@ -47,7 +45,6 @@ class AuthService:
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }
-
 
 class AuditService:
 

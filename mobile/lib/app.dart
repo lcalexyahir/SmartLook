@@ -1,12 +1,24 @@
+// mobile/lib/app.dart
+//
+// Archivo YA EXISTENTE. Cambios:
+// - SplashScreen._checkAuth() ahora llama a intentarRestaurarSesion()
+//   antes de decidir a dónde navegar (antes revisaba isAuthenticated
+//   directo, que siempre daba false al reabrir la app porque _currentUser
+//   vivía solo en memoria).
+// - La redirección ahora depende del rol: SUPER_ADMIN -> /admin,
+//   CLIENTE -> /catalog, sin sesión -> /login.
+// - Se agrega la ruta '/admin' (placeholder por ahora, se construye en
+//   el siguiente paso).
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'shared/theme/app_theme.dart';
-import 'features/auth/presentation/login_screen.dart';
-import 'features/catalog/presentation/product_list_screen.dart';
 import 'package:provider/provider.dart';
+import 'shared/theme/app_theme.dart';
 import 'core/services/auth_service.dart';
+import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
-import 'features/auth/presentation/register_screen.dart';
+import 'features/client/presentation/client_home_screen.dart';
+import 'features/admin/presentation/admin_home_screen.dart';
 
 class SmartLookApp extends StatelessWidget {
   const SmartLookApp({super.key});
@@ -21,8 +33,9 @@ class SmartLookApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => RegisterScreen(),
-        '/catalog': (context) => const ProductListScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/catalog': (context) => const ClientHomeScreen(),
+        '/admin': (context) => const AdminHomeScreen(),
       },
     );
   }
@@ -45,12 +58,25 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-    
+
     final authService = context.read<AuthService>();
-    if (authService.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/catalog');
-    } else {
+
+    // Antes: solo miraba authService.isAuthenticated, que siempre daba
+    // false al reabrir la app (la sesión nunca se restauraba de verdad).
+    final sesionRestaurada = await authService.intentarRestaurarSesion();
+    if (!mounted) return;
+
+    if (!sesionRestaurada) {
       Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    final esSuperAdmin = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
+
+    if (esSuperAdmin) {
+      Navigator.pushReplacementNamed(context, '/admin');
+    } else {
+      Navigator.pushReplacementNamed(context, '/catalog');
     }
   }
 

@@ -1,0 +1,207 @@
+<!-- web/src/app/modules/products/pages/product-management/product-management.component.html -->
+<div class="products-container">
+  <div class="header">
+    <h2>Gestión de Productos</h2>
+    <button class="btn btn-primary" (click)="showForm ? cancelar() : nuevoProducto()">
+      {{ showForm ? 'Cancelar' : 'Nuevo Producto' }}
+    </button>
+  </div>
+
+  <div class="card" *ngIf="showForm">
+    <h3>{{ editandoId ? 'Editar Producto' : 'Registrar Producto' }}</h3>
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+    <form [formGroup]="productForm" (ngSubmit)="onSubmit()">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" formControlName="nombre" placeholder="Camisa Oxford Premium">
+        </div>
+        <div class="form-group">
+          <label>Tipo de prenda</label>
+          <input type="text" formControlName="tipo_prenda" placeholder="Camisa, Pantalón...">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Categoría</label>
+          <select formControlName="id_categoria">
+            <option value="">Seleccione categoría</option>
+            <option *ngFor="let c of categorias" [value]="c.id_categoria">{{ c.nombre }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Marca (opcional)</label>
+          <select formControlName="id_marca">
+            <option value="">Sin marca</option>
+            <option *ngFor="let m of marcas" [value]="m.id_marca">{{ m.nombre }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Temporada (opcional)</label>
+          <select formControlName="id_temporada">
+            <option value="">Sin temporada</option>
+            <option *ngFor="let t of temporadas" [value]="t.id_temporada">{{ t.nombre }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Colección (opcional)</label>
+          <select formControlName="id_coleccion">
+            <option value="">Sin colección</option>
+            <option *ngFor="let c of colecciones" [value]="c.id_coleccion">{{ c.nombre }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea formControlName="descripcion" rows="3"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>URL de imagen (opcional)</label>
+        <input type="text" formControlName="imagen_producto" placeholder="https://...">
+      </div>
+
+      <div class="form-group" *ngIf="editandoId">
+        <label>Estado</label>
+        <select formControlName="estado">
+          <option value="ACTIVO">ACTIVO</option>
+          <option value="INACTIVO">INACTIVO</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-success" [disabled]="productForm.invalid">Guardar</button>
+    </form>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Nombre</th>
+          <th>Categoría</th>
+          <th>Marca</th>
+          <th>Tipo</th>
+          <th>Variantes</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let p of productos">
+          <tr>
+            <td>
+              <button class="btn-expand" (click)="toggleVariantes(p)">
+                {{ productoExpandidoId === p.id_producto ? '▾' : '▸' }}
+              </button>
+            </td>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.categoria?.nombre || 'N/A' }}</td>
+            <td>{{ p.marca?.nombre || 'N/A' }}</td>
+            <td>{{ p.tipo_prenda }}</td>
+            <td>{{ p.variantes?.length || 0 }}</td>
+            <td>
+              <span class="badge" [class.active]="p.estado === 'ACTIVO'">{{ p.estado }}</span>
+            </td>
+            <td>
+              <button class="btn btn-link" (click)="editarProducto(p)">Editar</button>
+              <button class="btn btn-link danger" (click)="eliminarProducto(p)">Eliminar</button>
+            </td>
+          </tr>
+
+          <!-- Fila expandible: variantes de este producto -->
+          <tr *ngIf="productoExpandidoId === p.id_producto" class="variantes-row">
+            <td colspan="8">
+              <div class="variantes-panel">
+                <div class="header">
+                  <h4>Variantes de "{{ p.nombre }}"</h4>
+                  <button class="btn btn-primary btn-sm" (click)="showFormVariante ? cancelarVariante() : nuevaVariante()">
+                    {{ showFormVariante ? 'Cancelar' : '+ Nueva Variante' }}
+                  </button>
+                </div>
+
+                <div class="card" *ngIf="showFormVariante">
+                  <p class="error" *ngIf="errorVariante">{{ errorVariante }}</p>
+                  <form [formGroup]="varianteForm" (ngSubmit)="guardarVariante()">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Talla</label>
+                        <select formControlName="id_talla">
+                          <option value="">Seleccione talla</option>
+                          <option *ngFor="let t of tallas" [value]="t.id_talla">{{ t.nombre }}</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Color</label>
+                        <select formControlName="id_color">
+                          <option value="">Seleccione color</option>
+                          <option *ngFor="let c of colores" [value]="c.id_color">{{ c.nombre }}</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Código (SKU)</label>
+                        <input type="text" formControlName="codigo_producto" placeholder="CAM-OXF-M-BLA">
+                      </div>
+                      <div class="form-group">
+                        <label>Precio (Bs)</label>
+                        <input type="number" formControlName="precio" min="0" step="0.01">
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Cantidad inicial</label>
+                        <input type="number" formControlName="cantidad" min="0">
+                      </div>
+                      <div class="form-group" *ngIf="editandoVarianteId">
+                        <label>Estado</label>
+                        <select formControlName="estado">
+                          <option value="DISPONIBLE">DISPONIBLE</option>
+                          <option value="AGOTADO">AGOTADO</option>
+                          <option value="INACTIVO">INACTIVO</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button type="submit" class="btn btn-success" [disabled]="varianteForm.invalid">Guardar</button>
+                  </form>
+                </div>
+
+                <table class="table table-variantes">
+                  <thead>
+                    <tr><th>Código</th><th>Talla</th><th>Color</th><th>Precio</th><th>Cantidad</th><th>Estado</th><th>Acciones</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let v of p.variantes">
+                      <td>{{ v.codigo_producto }}</td>
+                      <td>{{ v.talla?.nombre }}</td>
+                      <td>{{ v.color?.nombre }}</td>
+                      <td>Bs {{ v.precio }}</td>
+                      <td>{{ v.cantidad }}</td>
+                      <td><span class="badge" [class.active]="v.estado === 'DISPONIBLE'">{{ v.estado }}</span></td>
+                      <td>
+                        <button class="btn btn-link" (click)="editarVariante(v)">Editar</button>
+                        <button class="btn btn-link danger" (click)="eliminarVariante(v)">Eliminar</button>
+                      </td>
+                    </tr>
+                    <tr *ngIf="!p.variantes || p.variantes.length === 0">
+                      <td colspan="7">Este producto todavía no tiene variantes.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+
+        <tr *ngIf="productos.length === 0"><td colspan="8">No hay productos registrados.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>

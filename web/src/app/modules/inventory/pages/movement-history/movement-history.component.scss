@@ -1,3 +1,10 @@
+// web/src/app/modules/inventory/pages/movement-history/movement-history.component.scss
+//
+// Archivo YA EXISTENTE. .tabs/.header/.card/.form-row/.form-group/.btn
+// ya vienen del @import (están en stock-list.component.scss). Aquí solo
+// quedan los modificadores propios de esta página (badge de tipo de
+// movimiento).
+
 @import '../stock-list/stock-list.component.scss';
 
 .badge {

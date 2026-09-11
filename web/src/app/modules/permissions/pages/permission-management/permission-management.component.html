@@ -1,0 +1,44 @@
+<!-- web/src/app/modules/permissions/pages/permission-management/permission-management.component.html -->
+<div class="permissions-container">
+  <div class="header">
+    <h2>Permisos por Rol</h2>
+  </div>
+
+  <div class="card">
+    <div class="form-group">
+      <label for="rol">Seleccione un rol</label>
+      <select id="rol" (change)="seleccionarRol(+$any($event.target).value)">
+        <option value="">-- Seleccione --</option>
+        <option *ngFor="let rol of roles" [value]="rol.id_rol">
+          {{ rol.nombre }}
+        </option>
+      </select>
+    </div>
+
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    <p class="success" *ngIf="successMessage">{{ successMessage }}</p>
+
+    <div *ngIf="idRolSeleccionado !== null && !loading">
+      <div class="permisos-grid">
+        <label class="permiso-item" *ngFor="let permiso of permisos">
+          <input
+            type="checkbox"
+            [checked]="estaAsignado(permiso.id_permiso)"
+            (change)="toggle(permiso.id_permiso)">
+          <span>
+            <strong>{{ permiso.nombre }}</strong>
+            <small *ngIf="permiso.descripcion">{{ permiso.descripcion }}</small>
+          </span>
+        </label>
+
+        <p *ngIf="permisos.length === 0">No hay permisos registrados en el catálogo.</p>
+      </div>
+
+      <button class="btn btn-success" (click)="guardar()" [disabled]="guardando">
+        {{ guardando ? 'Guardando...' : 'Guardar Permisos' }}
+      </button>
+    </div>
+
+    <p *ngIf="idRolSeleccionado !== null && loading">Cargando permisos del rol...</p>
+  </div>
+</div>

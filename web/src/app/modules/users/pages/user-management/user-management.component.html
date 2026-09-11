@@ -1,150 +1,106 @@
-<div class="page">
-
+<!-- web/src/app/modules/users/pages/user-management/user-management.component.html -->
+<div class="users-container">
   <div class="header">
-
-    <div>
-      <h1>Usuarios y Roles</h1>
-      <p>Administración de usuarios del sistema</p>
-    </div>
-
-
-    <button 
-      class="btn-new"
-      routerLink="/users/nuevo">
-
-      + Nuevo Usuario
-
+    <h2>Usuarios y Roles</h2>
+    <button class="btn btn-primary" (click)="showForm ? cancelar() : nuevoUsuario()">
+      {{ showForm ? 'Cancelar' : 'Nuevo Usuario' }}
     </button>
-
   </div>
 
+  <div class="card" *ngIf="showForm">
+    <h3>{{ editandoId ? 'Editar Usuario' : 'Registrar Usuario' }}</h3>
 
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
 
-  <div class="card">
+    <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nombres">Nombres</label>
+          <input type="text" id="nombres" formControlName="nombres">
+        </div>
+        <div class="form-group">
+          <label for="apellidos">Apellidos</label>
+          <input type="text" id="apellidos" formControlName="apellidos">
+        </div>
+      </div>
 
+      <div class="form-group">
+        <label for="correo">Correo Electrónico</label>
+        <input type="email" id="correo" formControlName="correo">
+      </div>
 
-    <table>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="telefono">Teléfono</label>
+          <input type="text" id="telefono" formControlName="telefono" placeholder="70000000">
+        </div>
+        <div class="form-group">
+          <label for="password">
+            {{ editandoId ? 'Nueva contraseña (opcional)' : 'Contraseña' }}
+          </label>
+          <input type="password" id="password" formControlName="password">
+        </div>
+      </div>
 
-
-      <thead>
-
-        <tr>
-
-          <th>Usuario</th>
-
-          <th>Correo</th>
-
-          <th>Roles</th>
-
-          <th>Estado</th>
-
-          <th>Fecha creación</th>
-
-        </tr>
-
-      </thead>
-
-
-
-      <tbody>
-
-
-        <tr *ngFor="let usuario of usuarios">
-
-
-          <td>
-
-            <strong>
-              {{ usuario.nombres }}
-              {{ usuario.apellidos }}
-            </strong>
-
-          </td>
-
-
-
-          <td>
-
-            {{ usuario.correo }}
-
-          </td>
-
-
-
-          <td>
-
-
-            <span 
-              class="rol"
-              *ngFor="let rol of usuario.roles">
-
+      <div class="form-row">
+        <div class="form-group">
+          <label for="rol">Rol</label>
+          <select id="rol" formControlName="rol">
+            <option value="">Seleccione rol</option>
+            <option *ngFor="let rol of roles" [value]="rol.id_rol">
               {{ rol.nombre }}
+            </option>
+          </select>
+        </div>
 
-            </span>
+        <div class="form-group" *ngIf="editandoId">
+          <label for="estado">Estado</label>
+          <select id="estado" formControlName="estado">
+            <option value="ACTIVO">ACTIVO</option>
+            <option value="INACTIVO">INACTIVO</option>
+            <option value="BLOQUEADO">BLOQUEADO</option>
+          </select>
+        </div>
+      </div>
 
-
-            <span 
-              *ngIf="!usuario.roles || usuario.roles.length === 0">
-
-              Sin rol asignado
-
-            </span>
-
-
-          </td>
-
-
-
-          <td>
-
-
-            <span
-              class="estado"
-              [class.inactivo]="usuario.estado !== 'ACTIVO'">
-
-              {{ usuario.estado }}
-
-            </span>
-
-
-          </td>
-
-
-
-          <td>
-
-            {{ usuario.fecha_creacion | date:'dd/MM/yyyy' }}
-
-          </td>
-
-
-
-        </tr>
-
-
-
-        <tr *ngIf="usuarios.length === 0">
-
-
-          <td 
-            colspan="5"
-            class="empty">
-
-            No existen usuarios registrados.
-
-          </td>
-
-
-        </tr>
-
-
-      </tbody>
-
-
-    </table>
-
-
+      <button type="submit" class="btn btn-success" [disabled]="userForm.invalid">
+        Guardar
+      </button>
+    </form>
   </div>
 
-
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th>Teléfono</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let usuario of usuarios">
+          <td>{{ usuario.nombres }} {{ usuario.apellidos }}</td>
+          <td>{{ usuario.correo }}</td>
+          <td>{{ usuario.telefono || 'N/A' }}</td>
+          <td>{{ usuario.roles[0]?.nombre || 'Sin rol' }}</td>
+          <td>
+            <span class="badge" [class.active]="usuario.estado === 'ACTIVO'">
+              {{ usuario.estado }}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-link" (click)="editarUsuario(usuario)">Editar</button>
+            <button class="btn btn-link danger" (click)="eliminarUsuario(usuario)">Eliminar</button>
+          </td>
+        </tr>
+        <tr *ngIf="!loading && usuarios.length === 0">
+          <td colspan="6">No hay usuarios administrativos registrados.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>

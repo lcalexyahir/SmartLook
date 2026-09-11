@@ -1,3 +1,8 @@
+// web/src/app/modules/auth/pages/login/login.component.ts
+//
+// Único cambio respecto al original: el redirect tras login ya no es
+// fijo a '/dashboard'. Ahora depende del rol del usuario autenticado.
+
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -38,7 +43,14 @@ export class LoginComponent implements OnInit {
     this.authService.login(correo, password).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/dashboard']);
+
+        // El cliente tiene su propia vista (catálogo con reservas);
+        // cualquier otro rol va al panel administrativo.
+        if (this.authService.esCliente()) {
+          this.router.navigate(['/catalog']);
+        } else {
+          this.router.navigate(['/dashboard']);
+        }
       },
       error: (error) => {
         this.loading = false;

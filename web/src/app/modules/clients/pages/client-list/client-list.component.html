@@ -1,0 +1,40 @@
+<!-- web/src/app/modules/clients/pages/client-list/client-list.component.html -->
+<div class="clients-container">
+  <div class="header">
+    <h2>Clientes</h2>
+    <input
+      type="text"
+      placeholder="Buscar por nombre o correo..."
+      [(ngModel)]="busqueda">
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th>Teléfono</th>
+          <th>Estado</th>
+          <th>Registrado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let cliente of clientesFiltrados">
+          <td>{{ cliente.nombres }} {{ cliente.apellidos }}</td>
+          <td>{{ cliente.correo }}</td>
+          <td>{{ cliente.telefono || 'N/A' }}</td>
+          <td>
+            <span class="badge" [class.active]="cliente.estado === 'ACTIVO'">
+              {{ cliente.estado }}
+            </span>
+          </td>
+          <td>{{ cliente.fecha_creacion | date:'dd/MM/yyyy HH:mm' }}</td>
+        </tr>
+        <tr *ngIf="!loading && clientesFiltrados.length === 0">
+          <td colspan="5">No hay clientes registrados todavía.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,7 +1,7 @@
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from common.permissions import IsAdminEmpresa, IsClienteOrReadOnly
+from common.permissions import IsAdminEmpresa, IsAdminEmpresaOrReadOnly
 from .models import (
     Pais,
     Ciudad,
@@ -32,67 +32,93 @@ from .serializers import (
 )
 
 
+def _es_admin(request):
+    usuario = request.user
+    return usuario.is_authenticated and usuario.roles.filter(
+        nombre__in=["SUPER_ADMIN", "ADMIN_EMPRESA"]
+    ).exists()
+
+
 class PaisViewSet(ReadOnlyModelViewSet):
     queryset = Pais.objects.filter(estado=True)
     serializer_class = PaisSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-
-class CiudadViewSet(ReadOnlyModelViewSet):
-    queryset = Ciudad.objects.filter(estado=True)
+class CiudadViewSet(ModelViewSet):
     serializer_class = CiudadSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class SucursalViewSet(ReadOnlyModelViewSet):
-    queryset = Sucursal.objects.filter(estado="ACTIVA")
-    serializer_class = SucursalSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class CategoriaViewSet(ReadOnlyModelViewSet):
-    queryset = Categoria.objects.filter(estado=True)
-    serializer_class = CategoriaSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class MarcaViewSet(ReadOnlyModelViewSet):
-    queryset = Marca.objects.filter(estado=True)
-    serializer_class = MarcaSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class TemporadaViewSet(ReadOnlyModelViewSet):
-    queryset = Temporada.objects.filter(estado=True)
-    serializer_class = TemporadaSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class ColeccionViewSet(ReadOnlyModelViewSet):
-    queryset = Coleccion.objects.filter(estado=True)
-    serializer_class = ColeccionSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class TallaViewSet(ReadOnlyModelViewSet):
-    queryset = Talla.objects.filter(estado=True)
-    serializer_class = TallaSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class ColorViewSet(ReadOnlyModelViewSet):
-    queryset = Color.objects.filter(estado=True)
-    serializer_class = ColorSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class ProductoViewSet(ModelViewSet):
-    queryset = Producto.objects.filter(estado="ACTIVO").prefetch_related("productovariante_set")
-    serializer_class = ProductoSerializer
-    permission_classes = [IsClienteOrReadOnly]
+    permission_classes = [IsAdminEmpresaOrReadOnly]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        return Ciudad.objects.all() if _es_admin(self.request) else Ciudad.objects.filter(estado=True)
+
+class SucursalViewSet(ModelViewSet):
+    serializer_class = SucursalSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        return Sucursal.objects.all() if _es_admin(self.request) else Sucursal.objects.filter(estado="ACTIVA")
+
+class CategoriaViewSet(ModelViewSet):
+    """CU04 - CRUD completo. Lectura libre, escritura solo admin."""
+    serializer_class = CategoriaSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        return Categoria.objects.all() if _es_admin(self.request) else Categoria.objects.filter(estado=True)
+
+class MarcaViewSet(ModelViewSet):
+    serializer_class = MarcaSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        return Marca.objects.all() if _es_admin(self.request) else Marca.objects.filter(estado=True)
+
+class TemporadaViewSet(ModelViewSet):
+    serializer_class = TemporadaSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        return Temporada.objects.all() if _es_admin(self.request) else Temporada.objects.filter(estado=True)
+
+class ColeccionViewSet(ModelViewSet):
+    serializer_class = ColeccionSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        return Coleccion.objects.all() if _es_admin(self.request) else Coleccion.objects.filter(estado=True)
+
+class TallaViewSet(ModelViewSet):
+    serializer_class = TallaSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        return Talla.objects.all() if _es_admin(self.request) else Talla.objects.filter(estado=True)
+
+class ColorViewSet(ModelViewSet):
+    serializer_class = ColorSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        return Color.objects.all() if _es_admin(self.request) else Color.objects.filter(estado=True)
+
+class ProductoViewSet(ModelViewSet):
+    """
+    CU04 - CRUD completo de productos.
+    BUG ENCONTRADO Y CORREGIDO: tenía permission_classes = [IsClienteOrReadOnly],
+    lo que significaba que un CLIENTE (no un admin) era el único rol
+    autorizado a crear/editar/eliminar productos - claramente invertido.
+    Ahora usa IsAdminEmpresaOrReadOnly: lectura libre (catálogo público),
+    escritura solo para SUPER_ADMIN/ADMIN_EMPRESA.
+    """
+    serializer_class = ProductoSerializer
+    permission_classes = [IsAdminEmpresaOrReadOnly]
+
+    def get_queryset(self):
+        if _es_admin(self.request):
+            queryset = Producto.objects.all().prefetch_related("productovariante_set")
+        else:
+            queryset = Producto.objects.filter(estado="ACTIVO").prefetch_related("productovariante_set")
+
         categoria = self.request.query_params.get("categoria")
         marca = self.request.query_params.get("marca")
         talla = self.request.query_params.get("talla")
@@ -112,12 +138,15 @@ class ProductoViewSet(ModelViewSet):
 
         return queryset.distinct()
 
-
-class ProductoVarianteViewSet(ReadOnlyModelViewSet):
-    queryset = ProductoVariante.objects.filter(estado__in=["DISPONIBLE", "AGOTADO"])
+class ProductoVarianteViewSet(ModelViewSet):
+    """CU04 - CRUD completo de variantes (talla/color/precio/stock)."""
     serializer_class = ProductoVarianteSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAdminEmpresaOrReadOnly]
 
+    def get_queryset(self):
+        if _es_admin(self.request):
+            return ProductoVariante.objects.all()
+        return ProductoVariante.objects.filter(estado__in=["DISPONIBLE", "AGOTADO"])
 
 class ProveedorViewSet(ModelViewSet):
     queryset = Proveedor.objects.filter(estado="ACTIVO")

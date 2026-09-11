@@ -1,23 +1,62 @@
+<!-- web/src/app/modules/dashboard/pages/dashboard-home/dashboard-home.component.html -->
 <div class="dashboard-container">
   <header class="dashboard-header">
     <h1>Bienvenido a SmartLook</h1>
     <p>Panel principal del sistema</p>
   </header>
 
-  <div class="cards">
+  <p *ngIf="cargando">Cargando indicadores...</p>
+  <p *ngIf="!cargando && !kpis">No se pudieron cargar los indicadores.</p>
+
+  <div class="cards" *ngIf="kpis">
     <div class="card">
-      <h3>Catálogo</h3>
-      <p>Gestión de productos y prendas</p>
+      <h3>{{ kpis.total_clientes }}</h3>
+      <p>Clientes registrados</p>
     </div>
 
     <div class="card">
-      <h3>Inventario</h3>
-      <p>Control de existencias</p>
+      <h3>{{ kpis.total_productos }}</h3>
+      <p>Productos activos</p>
     </div>
 
     <div class="card">
-      <h3>Ventas</h3>
-      <p>Información comercial</p>
+      <h3>{{ kpis.total_sucursales }}</h3>
+      <p>Sucursales activas</p>
+    </div>
+
+    <div class="card">
+      <h3>{{ kpis.total_proveedores }}</h3>
+      <p>Proveedores activos</p>
+    </div>
+
+    <div class="card">
+      <h3>{{ kpis.stock_total }}</h3>
+      <p>Unidades en stock (todas las sucursales)</p>
+    </div>
+
+    <div class="card">
+      <h3>{{ kpis.productos_stock_bajo }}</h3>
+      <p>Variantes con stock bajo (≤ 5 unidades)</p>
+    </div>
+
+    <div class="card">
+      <h3>{{ kpis.total_ventas_pos }}</h3>
+      <p>Ventas registradas en punto de caja</p>
+    </div>
+
+    <div class="card">
+      <h3>Bs {{ kpis.monto_total_ventas }}</h3>
+      <p>Monto total vendido (POS)</p>
+    </div>
+
+    <div class="card">
+      <h3>{{ kpis.total_ordenes }}</h3>
+      <p>Órdenes de compra digital</p>
+    </div>
+
+    <div class="card">
+      <h3>{{ kpis.reservas_pendientes }}</h3>
+      <p>Reservas de probador pendientes</p>
     </div>
   </div>
 </div>

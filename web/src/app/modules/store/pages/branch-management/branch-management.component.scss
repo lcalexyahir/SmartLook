@@ -1,3 +1,9 @@
+// web/src/app/modules/store/pages/branch-management/branch-management.component.scss
+//
+// Archivo YA EXISTENTE. Se agregan .tabs, .card, .btn, .btn-link,
+// .error (no estaban completas). .store-container, .form-row,
+// .table-container quedan igual.
+
 .store-container {
   padding: 2rem;
   max-width: 1200px;
@@ -15,11 +21,82 @@
   }
 }
 
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 1.5rem;
+
+  a {
+    padding: 0.75rem 0;
+    color: #6B6459;
+    text-decoration: none;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+
+    &.active {
+      color: #1a1a2e;
+      border-bottom-color: #1a1a2e;
+    }
+  }
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 1.5rem;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+
+.form-group {
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+  }
+
+  select, input {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+}
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary { background: #1a1a2e; color: white; }
+.btn-success { background: #4caf50; color: white; }
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #1a1a2e;
+  cursor: pointer;
+  margin-right: 0.75rem;
+  text-decoration: underline;
+  font-weight: normal;
+  padding: 0;
+
+  &.danger { color: #c0392b; }
+}
+
+.error { color: #c0392b; margin-bottom: 1rem; }
 
 .table-container {
   background: white;
@@ -34,6 +111,8 @@
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
   font-size: 0.8rem;
+  background: #fdecea;
+  color: #f44336;
 
   &.active {
     background: #e8f5e9;

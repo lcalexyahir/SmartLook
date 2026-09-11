@@ -27,8 +27,11 @@ export class RegisterComponent implements OnInit {
       nombres: ['', [Validators.required, Validators.minLength(2)]],
       apellidos: ['', [Validators.required, Validators.minLength(2)]],
       correo: ['', [Validators.required, Validators.email]],
-      telefono: ['', [Validators.pattern('^[0-9]{6,15}$')]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
+      // Alineado con el backend (RN7): 8 dígitos, inicia en 6 o 7,
+      // con prefijo +591 opcional. Campo opcional.
+      telefono: ['', [Validators.pattern('^(\\+591)?[67][0-9]{7}$')]],
+      // Alineado con el backend (RN2): mínimo 8 caracteres.
+      password: ['', [Validators.required, Validators.minLength(8)]],
       password_confirm: ['', [Validators.required]],
       direccion: [''],
       fecha_nacimiento: ['']
@@ -60,7 +63,13 @@ export class RegisterComponent implements OnInit {
       },
       error: (error) => {
         this.loading = false;
-        this.errorMessage = error.error?.error || 'Error al registrar. Verifique los datos.';
+        this.errorMessage = error.error?.error
+          || error.error?.correo?.[0]
+          || error.error?.password?.[0]
+          || error.error?.password_confirm?.[0]
+          || error.error?.telefono?.[0]
+          || error.error?.fecha_nacimiento?.[0]
+          || 'Error al registrar. Verifique los datos.';
       }
     });
   }

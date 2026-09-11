@@ -1,13 +1,21 @@
+<!-- web/src/app/modules/store/pages/branch-management/branch-management.component.html -->
 <div class="store-container">
+  <nav class="tabs">
+    <a routerLink="/store/sucursales" routerLinkActive="active">Sucursales</a>
+    <a routerLink="/store/ciudades" routerLinkActive="active">Ciudades</a>
+  </nav>
+
   <div class="header">
     <h2>Gestión de Sucursales</h2>
-    <button class="btn btn-primary" (click)="showForm = !showForm">
+    <button class="btn btn-primary" (click)="showForm ? cancelar() : nuevaSucursal()">
       {{ showForm ? 'Cancelar' : 'Nueva Sucursal' }}
     </button>
   </div>
 
   <div class="card" *ngIf="showForm">
-    <h3>Registrar Sucursal</h3>
+    <h3>{{ editandoId ? 'Editar Sucursal' : 'Registrar Sucursal' }}</h3>
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
     <form [formGroup]="branchForm" (ngSubmit)="onSubmit()">
       <div class="form-group">
         <label for="ciudad">Ciudad</label>
@@ -49,6 +57,7 @@
           <th>Dirección</th>
           <th>Teléfono</th>
           <th>Estado</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -62,7 +71,12 @@
               {{ branch.estado }}
             </span>
           </td>
+          <td>
+            <button class="btn btn-link" (click)="editarSucursal(branch)">Editar</button>
+            <button class="btn btn-link danger" (click)="eliminarSucursal(branch)">Eliminar</button>
+          </td>
         </tr>
+        <tr *ngIf="branches.length === 0"><td colspan="6">No hay sucursales registradas.</td></tr>
       </tbody>
     </table>
   </div>

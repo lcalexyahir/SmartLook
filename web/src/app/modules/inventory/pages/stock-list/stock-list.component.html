@@ -1,5 +1,69 @@
+<!-- web/src/app/modules/inventory/pages/stock-list/stock-list.component.html -->
 <div class="inventory-container">
-  <h2>Control de Stock</h2>
+  <nav class="tabs">
+    <a routerLink="/inventory/stock" routerLinkActive="active">Stock</a>
+    <a routerLink="/inventory/movimientos" routerLinkActive="active">Movimientos</a>
+  </nav>
+
+  <div class="header">
+    <h2>Control de Stock</h2>
+    <button class="btn btn-primary" (click)="showForm = !showForm">
+      {{ showForm ? 'Cancelar' : '+ Registrar Movimiento' }}
+    </button>
+  </div>
+
+  <div class="card" *ngIf="showForm">
+    <h3>Registrar Movimiento</h3>
+
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+    <form [formGroup]="movementForm" (ngSubmit)="onSubmit()">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="id_sucursal">Sucursal</label>
+          <select id="id_sucursal" formControlName="id_sucursal">
+            <option value="">Seleccione sucursal</option>
+            <option *ngFor="let s of sucursales" [value]="s.id_sucursal">{{ s.nombre }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_variante">Variante de producto</label>
+          <select id="id_variante" formControlName="id_variante">
+            <option value="">Seleccione variante</option>
+            <option *ngFor="let v of variantes" [value]="v.id_variante">
+              {{ etiquetaVariante(v) }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="tipo_movimiento">Tipo de movimiento</label>
+          <select id="tipo_movimiento" formControlName="tipo_movimiento">
+            <option value="ENTRADA">ENTRADA</option>
+            <option value="SALIDA">SALIDA</option>
+            <option value="AJUSTE">AJUSTE</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="cantidad">Cantidad</label>
+          <input type="number" id="cantidad" formControlName="cantidad" min="1">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="motivo">Motivo (opcional)</label>
+        <input type="text" id="motivo" formControlName="motivo">
+      </div>
+
+      <button type="submit" class="btn btn-success" [disabled]="movementForm.invalid || guardando">
+        {{ guardando ? 'Guardando...' : 'Registrar' }}
+      </button>
+    </form>
+  </div>
 
   <app-loading-spinner *ngIf="loading"></app-loading-spinner>
 
@@ -27,6 +91,9 @@
               {{ item.estado ? 'Activo' : 'Inactivo' }}
             </span>
           </td>
+        </tr>
+        <tr *ngIf="stockItems.length === 0">
+          <td colspan="6">No hay stock registrado todavía.</td>
         </tr>
       </tbody>
     </table>
