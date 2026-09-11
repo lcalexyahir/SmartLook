@@ -24,6 +24,7 @@ export class LayoutComponent {
 
   usuario: any = null;
   esCliente = false;
+  sidebarVisible = true;
 
   constructor(
 

@@ -4,6 +4,7 @@
 // los mismos KPIs reales que la web, desde /api/bi/dashboard/.
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/theme/app_colors.dart';
@@ -47,29 +48,54 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      backgroundColor: AppColors.panelBg,
+      appBar: AppBar(
+        backgroundColor: AppColors.bgDeep,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.panelBg),
+        title: Text(
+          'Dashboard',
+          style: GoogleFonts.fraunces(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: AppColors.panelBg,
+          ),
+        ),
+      ),
       body: _cargando
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : RefreshIndicator(
+              color: AppColors.primary,
               onRefresh: _cargar,
               child: _kpis == null
-                  ? ListView(children: const [
+                  ? ListView(children: [
                       Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(child: Text('No se pudieron cargar los indicadores.')),
+                        padding: const EdgeInsets.all(32),
+                        child: Center(
+                          child: Text(
+                            'No se pudieron cargar los indicadores.',
+                            style: GoogleFonts.inter(color: AppColors.grey),
+                          ),
+                        ),
                       )
                     ])
                   : ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
-                        const Text(
+                        Text(
                           'Bienvenido a SmartLook',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                          style: GoogleFonts.fraunces(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textDark,
+                          ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Panel principal del sistema',
-                          style: TextStyle(color: Colors.grey),
+                          style: GoogleFonts.inter(fontSize: 13, color: AppColors.grey),
                         ),
                         const SizedBox(height: 20),
                         GridView.count(
@@ -107,26 +133,46 @@ class _TarjetaKpi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              valor,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          border: Border.all(color: AppColors.line),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-            const SizedBox(height: 4),
-            Text(
-              etiqueta,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(height: 3, color: AppColors.primary),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      valor,
+                      style: GoogleFonts.fraunces(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      etiqueta,
+                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.grey),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

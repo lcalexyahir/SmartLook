@@ -4,6 +4,7 @@
 // ahora navega a PermissionManagementScreen.
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../shared/theme/app_colors.dart';
@@ -40,8 +41,19 @@ class AdminHomeScreen extends StatelessWidget {
     ];
 
     return Scaffold(
+      backgroundColor: AppColors.panelBg,
       appBar: AppBar(
-        title: const Text('SmartLook Admin'),
+        backgroundColor: AppColors.bgDeep,
+        elevation: 0,
+        title: Text(
+          'SmartLook',
+          style: GoogleFonts.fraunces(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: AppColors.panelBg,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: AppColors.panelBg),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -60,12 +72,22 @@ class AdminHomeScreen extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            color: AppColors.primary.withOpacity(0.08),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              border: Border(
+                bottom: BorderSide(color: AppColors.line),
+                top: const BorderSide(color: AppColors.primary, width: 3),
+              ),
+            ),
             child: Text(
               usuario != null
                   ? '${usuario.nombreCompleto} · SUPER_ADMIN'
                   : 'SUPER_ADMIN',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: AppColors.textDark,
+              ),
             ),
           ),
           Expanded(
@@ -198,22 +220,53 @@ class _TarjetaSeccion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(6),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: AppColors.line),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(seccion.icono, size: 32, color: AppColors.primary),
-              const SizedBox(height: 12),
-              Text(
-                seccion.titulo,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              Container(
+                height: 3,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(seccion.icono, size: 30, color: AppColors.primary),
+                      const SizedBox(height: 12),
+                      Text(
+                        seccion.titulo,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
