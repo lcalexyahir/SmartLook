@@ -87,6 +87,38 @@
   }
 }
 
+/* ===== NUEVO: CU08 - Disponibilidad por Sucursal ===== */
+.availability-section {
+  margin-bottom: 2rem;
+
+  .availability-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th, td {
+      padding: 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+  }
+
+  .badge-disponible {
+    color: #4caf50;
+    font-weight: 600;
+  }
+
+  .badge-agotado {
+    color: #f44336;
+    font-weight: 600;
+  }
+
+  .no-stock {
+    color: #999;
+    font-style: italic;
+  }
+}
+/* ===== FIN NUEVO ===== */
+
 .action-section {
   .price-display {
     display: flex;
@@ -115,3 +147,11 @@
     }
   }
 }
+
+/* ===== NUEVO: CU14 - Agregar al Carrito ===== */
+.cart-message {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: #4caf50;
+}
+/* ===== FIN NUEVO ===== */

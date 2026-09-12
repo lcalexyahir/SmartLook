@@ -1,0 +1,63 @@
+<div class="reservation-container">
+  <h2>Reservar Prendas</h2>
+  <p class="subtitle">Elige las prendas, la sucursal y el horario en que quieres probártelas.</p>
+
+  <div *ngIf="loading">Cargando catálogo...</div>
+
+  <div *ngIf="!loading" class="card">
+    <h3>Agregar Prenda</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Producto</label>
+        <select [(ngModel)]="selectedProductId" (ngModelChange)="selectedVarianteId = null">
+          <option [ngValue]="null">Selecciona un producto</option>
+          <option *ngFor="let p of products" [ngValue]="p.id_producto">{{ p.nombre }}</option>
+        </select>
+      </div>
+      <div class="form-group" *ngIf="selectedProduct">
+        <label>Variante (talla / color)</label>
+        <select [(ngModel)]="selectedVarianteId">
+          <option [ngValue]="null">Selecciona una variante</option>
+          <option *ngFor="let v of selectedProduct.variantes" [ngValue]="v.id_variante">
+            {{ v.talla?.nombre }} - {{ v.color?.nombre }} (Bs {{ v.precio }})
+          </option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-secondary" (click)="addItem()">+ Agregar a la reserva</button>
+    </div>
+
+    <div *ngIf="items.length > 0" class="items-list">
+      <h4>Prendas en esta reserva</h4>
+      <div class="item-row" *ngFor="let item of items; let i = index">
+        <span>{{ item.label }}</span>
+        <button type="button" class="btn-link" (click)="removeItem(i)">Quitar</button>
+      </div>
+    </div>
+
+    <h3>Datos de la Reserva</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Sucursal</label>
+        <select [(ngModel)]="selectedSucursalId">
+          <option [ngValue]="null">Selecciona una sucursal</option>
+          <option *ngFor="let s of sucursales" [ngValue]="s.id_sucursal">{{ s.nombre }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" [(ngModel)]="fechaReserva">
+      </div>
+      <div class="form-group">
+        <label>Hora</label>
+        <input type="time" [(ngModel)]="horaReserva">
+      </div>
+    </div>
+
+    <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+    <div class="alert alert-success" *ngIf="successMessage">{{ successMessage }}</div>
+
+    <button type="button" class="btn btn-accent btn-block" [disabled]="submitting" (click)="submit()">
+      {{ submitting ? 'Enviando...' : 'Confirmar Reserva' }}
+    </button>
+  </div>
+</div>

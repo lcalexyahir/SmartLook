@@ -1,7 +1,8 @@
 // mobile/lib/features/admin/presentation/admin_home_screen.dart
 //
-// Único cambio respecto a la versión anterior: la tarjeta "Permisos"
-// ahora navega a PermissionManagementScreen.
+// MODIFICADO (CU12): se agrega la tarjeta "Reservas", que navega a
+// ReservationManagementScreen (el encargado ve todas las reservas con
+// el nombre del cliente, y puede confirmar/completar/cancelar).
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,6 +19,7 @@ import 'supplier_management_screen.dart';
 import 'dashboard_home_screen.dart';
 import 'attribute_management_screen.dart';
 import 'product_management_screen.dart';
+import 'reservation_management_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -34,6 +36,7 @@ class AdminHomeScreen extends StatelessWidget {
       _SeccionAdmin('Atributos de Producto', Icons.straighten_outlined, 'atributos'),
       _SeccionAdmin('Permisos', Icons.lock_outline, 'permisos'),
       _SeccionAdmin('Inventario', Icons.inventory_2_outlined, 'inventario'),
+      _SeccionAdmin('Reservas', Icons.event_available_outlined, 'reservas'),
       _SeccionAdmin('Sucursales', Icons.storefront_outlined, 'sucursales'),
       _SeccionAdmin('Proveedores', Icons.local_shipping_outlined, 'proveedores'),
       _SeccionAdmin('Clientes', Icons.person_outline, 'clientes'),
@@ -80,9 +83,7 @@ class AdminHomeScreen extends StatelessWidget {
               ),
             ),
             child: Text(
-              usuario != null
-                  ? '${usuario.nombreCompleto} · SUPER_ADMIN'
-                  : 'SUPER_ADMIN',
+              usuario != null ? '${usuario.nombreCompleto} · SUPER_ADMIN' : 'SUPER_ADMIN',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
@@ -167,6 +168,14 @@ class AdminHomeScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const InventoryScreen(),
+                          ),
+                        );
+                        break;
+                      case 'reservas':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ReservationManagementScreen(),
                           ),
                         );
                         break;

@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core';
+import { Router } from '@angular/router';
 import { Product } from '../../../core/models/product.interface';
 
 @Component({
@@ -9,6 +10,8 @@ import { Product } from '../../../core/models/product.interface';
 export class ProductCardComponent {
   @Input() product!: Product;
 
+  constructor(private router: Router) {}
+
   getPriceRange(): string {
     if (!this.product.variantes || this.product.variantes.length === 0) {
       return 'Sin precio';
@@ -17,5 +20,9 @@ export class ProductCardComponent {
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     return min === max ? `Bs ${min.toFixed(2)}` : `Bs ${min.toFixed(2)} - Bs ${max.toFixed(2)}`;
+  }
+
+  verDetalle(): void {
+    this.router.navigate(['/catalog', this.product.id_producto]);
   }
 }

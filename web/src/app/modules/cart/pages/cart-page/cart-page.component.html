@@ -1,0 +1,35 @@
+<div class="cart-container">
+  <h2>Mi Carrito</h2>
+
+  <div *ngIf="loading">Cargando carrito...</div>
+
+  <div *ngIf="!loading && (!carrito || carrito.items.length === 0)" class="empty-state">
+    <p>Tu carrito está vacío.</p>
+    <a routerLink="/catalog" class="btn btn-accent">Ir al catálogo</a>
+  </div>
+
+  <div *ngIf="!loading && carrito && carrito.items.length > 0">
+    <div class="cart-item" *ngFor="let item of carrito.items">
+      <div class="item-info">
+        <span class="item-name">{{ item.variante }}</span>
+        <span class="item-price">Bs {{ item.precio_unitario }} c/u</span>
+      </div>
+      <div class="item-qty">
+        <button type="button" (click)="decrementar(item)">-</button>
+        <span>{{ item.cantidad }}</span>
+        <button type="button" (click)="incrementar(item)">+</button>
+      </div>
+      <div class="item-subtotal">Bs {{ item.subtotal }}</div>
+      <button type="button" class="btn-link btn-danger" (click)="quitar(item)">Quitar</button>
+    </div>
+
+    <div class="cart-summary">
+      <span>Total</span>
+      <span class="total-value">Bs {{ carrito.total }}</span>
+    </div>
+
+    <button type="button" class="btn btn-accent btn-block" disabled>
+      Proceder al Pago (próximamente)
+    </button>
+  </div>
+</div>

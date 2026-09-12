@@ -1,25 +1,24 @@
-// mobile/lib/features/reservations/presentation/reservation_status_screen.dart
+// mobile/lib/features/admin/presentation/reservation_management_screen.dart
 //
-// Archivo NUEVO (estaba vacío). Lista las reservas del cliente logueado
-// (el backend ya filtra por el usuario autenticado) y permite cancelar
-// las que estén PENDIENTE o CONFIRMADA. Incluye botón flotante para ir
-// al formulario de nueva reserva (ReservationFormScreen).
+// Archivo NUEVO. Equivalente mobile de ReservationListComponent (web)
+// para el rol encargado/admin: el backend ya filtra el queryset para
+// devolver TODAS las reservas con el nombre del cliente cuando el
+// usuario logueado no es CLIENTE.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../data/reservation_service.dart';
-import 'reservation_form_screen.dart';
+import '../../reservations/data/reservation_service.dart';
 
-class ReservationStatusScreen extends StatefulWidget {
-  const ReservationStatusScreen({super.key});
+class ReservationManagementScreen extends StatefulWidget {
+  const ReservationManagementScreen({super.key});
 
   @override
-  State<ReservationStatusScreen> createState() => _ReservationStatusScreenState();
+  State<ReservationManagementScreen> createState() => _ReservationManagementScreenState();
 }
 
-class _ReservationStatusScreenState extends State<ReservationStatusScreen> {
+class _ReservationManagementScreenState extends State<ReservationManagementScreen> {
   late final ReservationService _reservationService;
   List<dynamic> _reservas = [];
   bool _loading = true;
@@ -43,6 +42,16 @@ class _ReservationStatusScreenState extends State<ReservationStatusScreen> {
     } catch (e) {
       setState(() => _loading = false);
     }
+  }
+
+  Future<void> _confirmar(int id) async {
+    await _reservationService.confirmarReserva(id);
+    _cargar();
+  }
+
+  Future<void> _completar(int id) async {
+    await _reservationService.completarReserva(id);
+    _cargar();
   }
 
   Future<void> _cancelar(int id) async {
@@ -73,16 +82,14 @@ class _ReservationStatusScreenState extends State<ReservationStatusScreen> {
     }
   }
 
-  bool _puedeCancelar(String estado) => estado == 'PENDIENTE' || estado == 'CONFIRMADA';
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis Reservas')),
+      appBar: AppBar(title: const Text('Reservas')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _reservas.isEmpty
-              ? const Center(child: Text('Todavía no tienes reservas.'))
+              ? const Center(child: Text('No hay reservas registradas.'))
               : RefreshIndicator(
                   onRefresh: _cargar,
                   child: ListView.builder(
@@ -91,6 +98,7 @@ class _ReservationStatusScreenState extends State<ReservationStatusScreen> {
                     itemBuilder: (context, index) {
                       final reserva = _reservas[index];
                       final items = (reserva['items'] ?? []) as List<dynamic>;
+                      final estado = reserva['estado'].toString();
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: Padding(
@@ -102,21 +110,30 @@ class _ReservationStatusScreenState extends State<ReservationStatusScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                      reserva['sucursal']?.toString() ?? '',
-                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          reserva['cliente']?.toString() ?? '',
+                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                        ),
+                                        Text(
+                                          reserva['sucursal']?.toString() ?? '',
+                                          style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: _colorEstado(reserva['estado'].toString()).withOpacity(0.15),
+                                      color: _colorEstado(estado).withOpacity(0.15),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      reserva['estado'].toString(),
+                                      estado,
                                       style: TextStyle(
-                                        color: _colorEstado(reserva['estado'].toString()),
+                                        color: _colorEstado(estado),
                                         fontWeight: FontWeight.w600,
                                         fontSize: 12,
                                       ),
@@ -128,16 +145,29 @@ class _ReservationStatusScreenState extends State<ReservationStatusScreen> {
                               Text('${reserva['fecha_reserva']} - ${reserva['hora_reserva']}'),
                               const SizedBox(height: 6),
                               ...items.map((item) => Text('• ${item['variante']}')),
-                              if (_puedeCancelar(reserva['estado'].toString())) ...[
-                                const SizedBox(height: 8),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () => _cancelar(reserva['id_reserva'] as int),
-                                    child: const Text('Cancelar', style: TextStyle(color: AppColors.danger)),
-                                  ),
-                                ),
-                              ],
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  if (estado == 'PENDIENTE' || estado == 'CONFIRMADA')
+                                    TextButton(
+                                      onPressed: () => _cancelar(reserva['id_reserva'] as int),
+                                      child: const Text('Cancelar', style: TextStyle(color: AppColors.danger)),
+                                    ),
+                                  if (estado == 'PENDIENTE')
+                                    OutlinedButton(
+                                      onPressed: () => _confirmar(reserva['id_reserva'] as int),
+                                      child: const Text('Confirmar'),
+                                    ),
+                                  if (estado == 'CONFIRMADA') ...[
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: () => _completar(reserva['id_reserva'] as int),
+                                      child: const Text('Completar'),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -145,17 +175,6 @@ class _ReservationStatusScreenState extends State<ReservationStatusScreen> {
                     },
                   ),
                 ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ReservationFormScreen()),
-          );
-          _cargar();
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Nueva Reserva'),
-      ),
     );
   }
 }

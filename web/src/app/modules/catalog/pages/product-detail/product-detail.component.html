@@ -2,13 +2,11 @@
   <div class="product-gallery">
     <img [src]="product.imagen_producto || 'assets/placeholder.png'" [alt]="product.nombre">
   </div>
-
   <div class="product-details">
     <span class="product-brand">{{ product.marca?.nombre || 'SmartLook' }}</span>
     <h1>{{ product.nombre }}</h1>
     <p class="product-category">{{ product.categoria?.nombre }}</p>
     <p class="product-description">{{ product.descripcion }}</p>
-
     <div class="product-meta">
       <span><strong>Tipo:</strong> {{ product.tipo_prenda }}</span>
       <span><strong>Género:</strong> {{ product.genero }}</span>
@@ -31,6 +29,36 @@
       </div>
     </div>
 
+    <div class="availability-section" *ngIf="selectedVariant">
+      <h3>Disponibilidad por Sucursal</h3>
+      <div *ngIf="loadingStock">Consultando disponibilidad...</div>
+      <div *ngIf="!loadingStock && stockPorSucursal.length === 0" class="no-stock">
+        No hay stock registrado en ninguna sucursal para esta variante.
+      </div>
+      <table class="availability-table" *ngIf="!loadingStock && stockPorSucursal.length > 0">
+        <thead>
+          <tr>
+            <th>Sucursal</th>
+            <th>Ciudad</th>
+            <th>Cantidad</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let stock of stockPorSucursal">
+            <td>{{ stock.sucursal_nombre }}</td>
+            <td>{{ stock.ciudad }}</td>
+            <td>{{ stock.cantidad }}</td>
+            <td>
+              <span [class]="stock.disponible ? 'badge-disponible' : 'badge-agotado'">
+                {{ stock.disponible ? 'Disponible' : 'Agotado' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="action-section" *ngIf="selectedVariant">
       <div class="price-display">
         <span class="price-label">Precio:</span>
@@ -39,11 +67,15 @@
       <div class="stock-info" [class.out-of-stock]="selectedVariant.cantidad <= 0">
         {{ selectedVariant.cantidad > 0 ? selectedVariant.cantidad + ' unidades disponibles' : 'Agotado' }}
       </div>
-      <button class="btn btn-accent btn-block" [disabled]="selectedVariant.cantidad <= 0">
-        Agregar al Carrito
+      <button
+        class="btn btn-accent btn-block"
+        [disabled]="selectedVariant.cantidad <= 0 || addingToCart"
+        (click)="agregarAlCarrito()"
+      >
+        {{ addingToCart ? 'Agregando...' : 'Agregar al Carrito' }}
       </button>
+      <p class="cart-message" *ngIf="cartMessage">{{ cartMessage }}</p>
     </div>
   </div>
 </div>
-
 <app-loading-spinner *ngIf="loading"></app-loading-spinner>

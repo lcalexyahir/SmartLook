@@ -1,0 +1,46 @@
+<div class="reservations-container">
+  <div class="header">
+    <h2>{{ esEncargado ? 'Reservas' : 'Mis Reservas' }}</h2>
+    <a *ngIf="!esEncargado" routerLink="/reservations/nueva" class="btn btn-accent">+ Nueva Reserva</a>
+  </div>
+
+  <div class="alert alert-error" *ngIf="actionError">{{ actionError }}</div>
+
+  <div *ngIf="loading">Cargando reservas...</div>
+
+  <div *ngIf="!loading && reservas.length === 0" class="empty-state">
+    <p>{{ esEncargado ? 'No hay reservas registradas.' : 'Todavía no tienes reservas.' }}</p>
+  </div>
+
+  <div class="reserva-card" *ngFor="let reserva of reservas">
+    <div class="reserva-header">
+      <div>
+        <strong *ngIf="esEncargado">{{ reserva.cliente }}</strong>
+        <span class="sucursal">{{ reserva.sucursal }}</span>
+      </div>
+      <span class="estado-badge" [class]="'estado-' + reserva.estado.toLowerCase()">
+        {{ reserva.estado }}
+      </span>
+    </div>
+    <div class="reserva-body">
+      <p><strong>Fecha:</strong> {{ reserva.fecha_reserva }} &nbsp; <strong>Hora:</strong> {{ reserva.hora_reserva }}</p>
+      <p class="items-label"><strong>Prendas:</strong></p>
+      <ul class="items-list">
+        <li *ngFor="let item of reserva.items">{{ item.variante }}</li>
+      </ul>
+    </div>
+    <div class="reserva-actions">
+      <button *ngIf="puedeCancelar(reserva)" class="btn-link btn-danger" (click)="cancelar(reserva.id_reserva)">
+        Cancelar
+      </button>
+      <ng-container *ngIf="esEncargado">
+        <button *ngIf="reserva.estado === 'PENDIENTE'" class="btn btn-secondary" (click)="confirmar(reserva.id_reserva)">
+          Confirmar
+        </button>
+        <button *ngIf="reserva.estado === 'CONFIRMADA'" class="btn btn-accent" (click)="completar(reserva.id_reserva)">
+          Marcar como Completada
+        </button>
+      </ng-container>
+    </div>
+  </div>
+</div>

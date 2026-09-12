@@ -10,10 +10,10 @@ import '../../../shared/widgets/empty_state.dart';
 import '../data/repositories/catalog_repository_impl.dart';
 import '../data/sources/catalog_remote_source.dart';
 import 'product_detail_screen.dart';
+import '../../cart_checkout/presentation/cart_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
-
   @override
   State<ProductListScreen> createState() => _ProductListScreenState();
 }
@@ -49,7 +49,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
       final brands = await _catalogRepository.getBrands();
       final sizes = await _catalogRepository.getSizes();
       final colors = await _catalogRepository.getColors();
-
       if (mounted) {
         setState(() {
           _categories = categories;
@@ -67,7 +66,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
     setState(() {
       _isLoading = true;
     });
-
     try {
       final products = await _catalogRepository.getProducts(
         categoria: _selectedCategory,
@@ -76,7 +74,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
         color: _selectedColor,
         busqueda: _searchQuery,
       );
-
       if (mounted) {
         setState(() {
           _products = products
@@ -261,7 +258,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ],
       ),
     );
-
     if (confirmar == true && mounted) {
       await context.read<AuthService>().logout();
       if (mounted) {
@@ -280,6 +276,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
       appBar: AppBar(
         title: const Text('SmartLook'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined),
+            tooltip: 'Carrito',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CartScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterSheet,

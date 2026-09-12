@@ -1,0 +1,123 @@
+.reservations-container {
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+
+  h2 {
+    color: #1a1a2e;
+    margin: 0;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  color: #999;
+  padding: 3rem;
+}
+
+.reserva-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.reserva-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+
+  strong {
+    display: block;
+    color: #1a1a2e;
+  }
+
+  .sucursal {
+    color: #666;
+    font-size: 0.9rem;
+  }
+}
+
+.estado-badge {
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+
+  &.estado-pendiente {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  &.estado-confirmada {
+    background: #d1ecf1;
+    color: #0c5460;
+  }
+
+  &.estado-completada {
+    background: #e8f5e9;
+    color: #4caf50;
+  }
+
+  &.estado-cancelada {
+    background: #fdecea;
+    color: #f44336;
+  }
+}
+
+.reserva-body {
+  p {
+    margin: 0.3rem 0;
+    color: #444;
+  }
+
+  .items-label {
+    margin-top: 0.6rem;
+  }
+
+  .items-list {
+    margin: 0.2rem 0 0;
+    padding-left: 1.2rem;
+    color: #666;
+  }
+}
+
+.reserva-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  justify-content: flex-end;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+
+  &.btn-danger {
+    color: #f44336;
+  }
+}
+
+.alert {
+  padding: 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+
+  &.alert-error {
+    background: #fdecea;
+    color: #f44336;
+  }
+}

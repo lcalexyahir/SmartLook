@@ -8,7 +8,7 @@
     <p class="product-category">{{ product.categoria?.nombre }}</p>
     <div class="product-footer">
       <span class="product-price">{{ getPriceRange() }}</span>
-      <button class="btn btn-primary">Ver Detalle</button>
+      <button type="button" class="btn btn-primary" (click)="verDetalle()">Ver Detalle</button>
     </div>
   </div>
 </div>

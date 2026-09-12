@@ -1,10 +1,9 @@
 // web/src/app/modules/inventory/services/inventory.service.ts
 //
-// Archivo YA EXISTENTE. Se agregan getSucursales() y getVariantes(),
-// necesarios para llenar los selectores del formulario de registro de
-// movimientos. getStockItems(), getMovements() y registerMovement()
-// quedan igual (registerMovement ya existía pero ningún componente lo
-// usaba todavía).
+// Archivo YA EXISTENTE. getStockItems() ahora acepta un varianteId
+// opcional para CU08 (consulta de disponibilidad del cliente).
+// getMovements(), registerMovement(), getSucursales() y getVariantes()
+// quedan igual.
 
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -17,8 +16,8 @@ import { StockItem, InventoryMovement } from '../../../core/models/inventory.int
 export class InventoryService {
   constructor(private apiService: ApiService) {}
 
-  getStockItems(): Observable<any> {
-    return this.apiService.get('/inventory/stock/');
+  getStockItems(varianteId?: number): Observable<any> {
+    return this.apiService.get<StockItem[]>('/inventory/stock/', { variante: varianteId });
   }
 
   getMovements(): Observable<any> {

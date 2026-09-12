@@ -1,12 +1,13 @@
 // mobile/lib/features/client/presentation/client_home_screen.dart
 //
-// Archivo NUEVO. Shell de navegación para el CLIENTE (bottom nav),
-// reemplaza la navegación directa a ProductListScreen. "Catálogo" es
-// real (ya existía); "Reservas" y "Perfil" quedan como placeholder,
-// listas para cuando se construyan esos casos de uso.
+// MODIFICADO (CU11/CU12/CU13): la pestaña "Reservas" ya no es
+// placeholder - ahora es ReservationStatusScreen (lista + cancelar +
+// botón flotante para crear una nueva). "Perfil" sigue como placeholder,
+// listo para cuando se construya ese caso de uso.
 
 import 'package:flutter/material.dart';
 import '../../catalog/presentation/product_list_screen.dart';
+import '../../reservations/presentation/reservation_status_screen.dart';
 import '../../../shared/theme/app_colors.dart';
 
 class ClientHomeScreen extends StatefulWidget {
@@ -21,7 +22,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   final List<Widget> _pantallas = const [
     ProductListScreen(),
-    _SeccionProximamente(titulo: 'Reservas', icono: Icons.event_available_outlined),
+    ReservationStatusScreen(),
     _SeccionProximamente(titulo: 'Perfil', icono: Icons.person_outline),
   ];
 

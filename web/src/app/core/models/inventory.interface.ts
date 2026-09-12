@@ -2,7 +2,12 @@ export interface StockItem {
   id_stock: number;
   sucursal: string;
   variante: string;
+  id_sucursal: number;
+  sucursal_nombre: string;
+  ciudad: string;
+  direccion: string;
   cantidad: number;
+  disponible: boolean;
   stock_minimo: number;
   stock_maximo: number;
   estado: boolean;
