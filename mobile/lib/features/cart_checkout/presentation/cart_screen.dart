@@ -1,7 +1,4 @@
 // mobile/lib/features/cart_checkout/presentation/cart_screen.dart
-//
-// Archivo NUEVO (estaba vacío). Lista el carrito activo del cliente,
-// permite +/- cantidad y quitar items.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -21,12 +18,19 @@ class _CartScreenState extends State<CartScreen> {
   Map<String, dynamic>? _carrito;
   bool _loading = true;
 
+  List<dynamic> _sucursales = [];
+  int? _sucursalSeleccionada;
+  bool _procesandoPago = false;
+  String? _errorPago;
+  Map<String, dynamic>? _ordenConfirmada;
+
   @override
   void initState() {
     super.initState();
     final apiClient = context.read<ApiClient>();
     _cartService = CartService(apiClient: apiClient);
     _cargar();
+    _cargarSucursales();
   }
 
   Future<void> _cargar() async {
@@ -39,6 +43,15 @@ class _CartScreenState extends State<CartScreen> {
       });
     } catch (e) {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _cargarSucursales() async {
+    try {
+      final sucursales = await _cartService.getSucursales();
+      setState(() => _sucursales = sucursales);
+    } catch (_) {
+      setState(() => _sucursales = []);
     }
   }
 
@@ -62,8 +75,65 @@ class _CartScreenState extends State<CartScreen> {
     _cargar();
   }
 
+  Future<void> _procesarPago() async {
+    if (_sucursalSeleccionada == null) {
+      setState(() => _errorPago = 'Selecciona una sucursal de entrega/retiro.');
+      return;
+    }
+    setState(() {
+      _procesandoPago = true;
+      _errorPago = null;
+    });
+    try {
+      final orden = await _cartService.checkout(_sucursalSeleccionada!);
+      setState(() {
+        _ordenConfirmada = orden;
+        _procesandoPago = false;
+      });
+      _cargar();
+    } catch (e) {
+      String mensaje = 'No se pudo procesar el pago. Intenta nuevamente.';
+      try {
+        final data = (e as dynamic).response?.data;
+        if (data is Map && data['error'] != null) {
+          mensaje = data['error'].toString();
+        }
+      } catch (_) {}
+      setState(() {
+        _errorPago = mensaje;
+        _procesandoPago = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_ordenConfirmada != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Mi Carrito')),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 64),
+              const SizedBox(height: 16),
+              const Text('¡Compra realizada con éxito!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text('Orden #${_ordenConfirmada!['id_orden']} - Total Bs ${_ordenConfirmada!['total']}'),
+              const SizedBox(height: 4),
+              Text('Referencia de pago: ${_ordenConfirmada!['referencia_pago']}'),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => setState(() => _ordenConfirmada = null),
+                child: const Text('Seguir comprando'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final items = (_carrito?['items'] ?? []) as List<dynamic>;
     return Scaffold(
       appBar: AppBar(title: const Text('Mi Carrito')),
@@ -142,10 +212,29 @@ class _CartScreenState extends State<CartScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    value: _sucursalSeleccionada,
+                    decoration: const InputDecoration(
+                      labelText: 'Sucursal de entrega/retiro',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _sucursales
+                        .map((s) => DropdownMenuItem<int>(
+                              value: s['id_sucursal'] as int,
+                              child: Text(s['nombre'].toString()),
+                            ))
+                        .toList(),
+                    onChanged: (value) => setState(() => _sucursalSeleccionada = value),
+                  ),
+                  if (_errorPago != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_errorPago!, style: const TextStyle(color: AppColors.danger)),
+                  ],
+                  const SizedBox(height: 12),
                   ElevatedButton(
-                    onPressed: null,
+                    onPressed: _procesandoPago ? null : _procesarPago,
                     style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                    child: const Text('Proceder al Pago (próximamente)'),
+                    child: Text(_procesandoPago ? 'Procesando pago...' : 'Proceder al Pago'),
                   ),
                 ],
               ),

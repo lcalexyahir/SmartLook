@@ -1,8 +1,4 @@
 // mobile/lib/features/cart_checkout/data/cart_service.dart
-//
-// Archivo NUEVO. Consume /api/sales/carritos/actual/ y
-// /api/sales/carrito-items/ (backend ya ajustado en la vuelta de web:
-// CartViewSet/CartItemViewSet aislados por cliente).
 
 import '../../../core/network/api_client.dart';
 
@@ -32,5 +28,19 @@ class CartService {
 
   Future<void> quitarItem(int idItem) async {
     await apiClient.dio.delete('/sales/carrito-items/$idItem/');
+  }
+
+  Future<List<dynamic>> getSucursales() async {
+    final response = await apiClient.dio.get('/catalog/sucursales/');
+    final data = response.data;
+    return (data['results'] ?? data) as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> checkout(int idSucursal) async {
+    final response = await apiClient.dio.post(
+      '/sales/carritos/checkout/',
+      data: {'id_sucursal': idSucursal},
+    );
+    return response.data as Map<String, dynamic>;
   }
 }
