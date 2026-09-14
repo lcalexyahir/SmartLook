@@ -13,6 +13,8 @@ SECRET_KEY = os.getenv(
     "smartlook-secret-key-ciclo1-2026"
 )
 
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:4200")
+
 
 DEBUG = False
 
@@ -67,6 +69,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
 
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+
+    # NUEVO: registra en Bitácora cada POST/PUT/PATCH/DELETE de un
+    # usuario autenticado (compras, reservas, altas, etc).
+    "common.middleware.audit_middleware.AuditMiddleware",
 ]
 
 

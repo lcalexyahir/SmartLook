@@ -26,4 +26,8 @@ export class CartService {
   quitarItem(idItem: number): Observable<any> {
     return this.apiService.delete(`/sales/carrito-items/${idItem}/`);
   }
+
+  checkout(idSucursal: number): Observable<any> {
+    return this.apiService.post('/sales/carritos/checkout/', { id_sucursal: idSucursal });
+  }
 }

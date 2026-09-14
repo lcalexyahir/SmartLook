@@ -3,14 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from common.permissions import IsCajero, IsCliente
 from apps.users_auth.models import Cliente
+from apps.catalog.models import Sucursal
 from .models import Cart, CartItem, Order, OrderItem, PosSale
 from .serializers import CartSerializer, CartItemSerializer, OrderSerializer, PosSaleSerializer
-
+from .services import CheckoutService
 
 class CartViewSet(ReadOnlyModelViewSet):
-    # BUG ENCONTRADO Y CORREGIDO (CU14): antes no tenía permission_classes
-    # propio (heredaba IsAuthenticated global) ni get_queryset filtrado -
-    # cualquier usuario logueado podía ver el carrito de cualquier cliente.
     serializer_class = CartSerializer
     permission_classes = [IsCliente]
 
@@ -20,11 +18,28 @@ class CartViewSet(ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["get"])
     def actual(self, request):
-        """Devuelve el carrito ACTIVO del cliente logueado, creándolo si no existe."""
         cliente = Cliente.objects.get(id_usuario=request.user)
         cart, _ = Cart.objects.get_or_create(id_cliente=cliente, estado="ACTIVO")
         return Response(self.get_serializer(cart).data)
 
+    @action(detail=False, methods=["post"])
+    def checkout(self, request):
+        cliente = Cliente.objects.get(id_usuario=request.user)
+        sucursal_id = request.data.get("id_sucursal")
+
+        if not sucursal_id:
+            return Response({"error": "Debe indicar la sucursal de entrega/retiro."}, status=400)
+        try:
+            sucursal = Sucursal.objects.get(pk=sucursal_id)
+        except Sucursal.DoesNotExist:
+            return Response({"error": "Sucursal no encontrada."}, status=400)
+
+        try:
+            order = CheckoutService.procesar_checkout(cliente, sucursal)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        return Response(OrderSerializer(order).data, status=201)
 
 class CartItemViewSet(ModelViewSet):
     serializer_class = CartItemSerializer
@@ -47,11 +62,13 @@ class CartItemViewSet(ModelViewSet):
         else:
             serializer.save(id_carrito=cart)
 
-
 class OrderViewSet(ReadOnlyModelViewSet):
-    queryset = Order.objects.all()
     serializer_class = OrderSerializer
+    permission_classes = [IsCliente]
 
+    def get_queryset(self):
+        cliente = Cliente.objects.get(id_usuario=self.request.user)
+        return Order.objects.filter(id_cliente=cliente).order_by("-fecha_creacion")
 
 class PosSaleViewSet(ModelViewSet):
     queryset = PosSale.objects.all()

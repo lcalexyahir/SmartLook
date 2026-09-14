@@ -2,7 +2,6 @@ from django.db import models
 from apps.users_auth.models import Usuario, Cliente
 from apps.catalog.models import Sucursal, ProductoVariante
 
-
 class Cart(models.Model):
     id_carrito = models.AutoField(primary_key=True)
     id_cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, db_column="id_cliente")
@@ -19,7 +18,6 @@ class Cart(models.Model):
         verbose_name = "Carrito"
         verbose_name_plural = "Carritos"
 
-
 class CartItem(models.Model):
     id_item = models.AutoField(primary_key=True)
     id_carrito = models.ForeignKey(Cart, on_delete=models.CASCADE, db_column="id_carrito")
@@ -31,7 +29,6 @@ class CartItem(models.Model):
         db_table = "cart_item"
         verbose_name = "Item de Carrito"
         verbose_name_plural = "Items de Carrito"
-
 
 class Order(models.Model):
     id_orden = models.AutoField(primary_key=True)
@@ -49,13 +46,19 @@ class Order(models.Model):
             ("CANCELADA", "Cancelada"),
         ],
     )
+    # NUEVO (CU15): cómo y con qué referencia se pagó la orden.
+    metodo_pago = models.CharField(
+        max_length=20,
+        default="TARJETA",
+        choices=[("TARJETA", "Tarjeta"), ("QR", "QR")],
+    )
+    referencia_pago = models.CharField(max_length=100, null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "orders"
         verbose_name = "Orden"
         verbose_name_plural = "Órdenes"
-
 
 class OrderItem(models.Model):
     id_item = models.AutoField(primary_key=True)
@@ -69,7 +72,6 @@ class OrderItem(models.Model):
         db_table = "order_item"
         verbose_name = "Item de Orden"
         verbose_name_plural = "Items de Orden"
-
 
 class PosSale(models.Model):
     id_venta = models.AutoField(primary_key=True)
