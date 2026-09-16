@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.catalog.models import ProductoVariante
-from .models import Cart, CartItem, Order, OrderItem, PosSale
+from .models import Cart, CartItem, Order, OrderItem, PosSale, PosSaleItem
 
 class CartItemSerializer(serializers.ModelSerializer):
     variante = serializers.StringRelatedField(source="id_variante", read_only=True)
@@ -47,7 +47,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(source="orderitem_set", many=True, read_only=True)
-    # NUEVO (CU15): sucursal, método y referencia de pago visibles en la orden.
     sucursal = serializers.StringRelatedField(source="id_sucursal")
 
     class Meta:
@@ -63,10 +62,19 @@ class OrderSerializer(serializers.ModelSerializer):
             "fecha_creacion",
         ]
 
+# NUEVO (CU16)
+class PosSaleItemSerializer(serializers.ModelSerializer):
+    variante = serializers.StringRelatedField(source="id_variante", read_only=True)
+
+    class Meta:
+        model = PosSaleItem
+        fields = ["id_item", "variante", "cantidad", "precio_unitario", "subtotal"]
+
 class PosSaleSerializer(serializers.ModelSerializer):
     sucursal = serializers.StringRelatedField(source="id_sucursal")
     usuario = serializers.StringRelatedField(source="id_usuario")
+    items = PosSaleItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = PosSale
-        fields = ["id_venta", "sucursal", "usuario", "total", "metodo_pago", "fecha_venta"]
+        fields = ["id_venta", "sucursal", "usuario", "items", "total", "metodo_pago", "fecha_venta"]

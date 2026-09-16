@@ -46,7 +46,6 @@ class Order(models.Model):
             ("CANCELADA", "Cancelada"),
         ],
     )
-    # NUEVO (CU15): cómo y con qué referencia se pagó la orden.
     metodo_pago = models.CharField(
         max_length=20,
         default="TARJETA",
@@ -92,3 +91,18 @@ class PosSale(models.Model):
         db_table = "pos_sale"
         verbose_name = "Venta POS"
         verbose_name_plural = "Ventas POS"
+
+# NUEVO (CU16): PosSale no tenía tabla de items — solo un total suelto,
+# sin registro de qué prendas se vendieron. Mismo patrón que OrderItem.
+class PosSaleItem(models.Model):
+    id_item = models.AutoField(primary_key=True)
+    id_venta = models.ForeignKey(PosSale, on_delete=models.CASCADE, db_column="id_venta", related_name="items")
+    id_variante = models.ForeignKey(ProductoVariante, on_delete=models.CASCADE, db_column="id_variante")
+    cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = "pos_sale_item"
+        verbose_name = "Item de Venta POS"
+        verbose_name_plural = "Items de Venta POS"

@@ -39,10 +39,13 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Antes: siempre navegaba a '/catalog'. Ahora depende del rol.
+      // NUEVO (CU16): CAJERO también va al dashboard (AdminHomeScreen,
+      // ya trae la tarjeta "Punto de Venta"). Antes solo distinguía
+      // SUPER_ADMIN y mandaba cualquier otro rol a '/catalog'.
       final esSuperAdmin = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
+      final esCajero = authService.currentUser?.hasRole('CAJERO') ?? false;
 
-      if (esSuperAdmin) {
+      if (esSuperAdmin || esCajero) {
         Navigator.pushReplacementNamed(context, '/admin');
       } else {
         Navigator.pushReplacementNamed(context, '/catalog');

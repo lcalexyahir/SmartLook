@@ -1,5 +1,6 @@
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from django.db.models import Q
 
 from common.permissions import IsAdminEmpresa, IsAdminEmpresaOrReadOnly
 from .models import (
@@ -59,7 +60,6 @@ class SucursalViewSet(ModelViewSet):
         return Sucursal.objects.all() if _es_admin(self.request) else Sucursal.objects.filter(estado="ACTIVA")
 
 class CategoriaViewSet(ModelViewSet):
-    """CU04 - CRUD completo. Lectura libre, escritura solo admin."""
     serializer_class = CategoriaSerializer
     permission_classes = [IsAdminEmpresaOrReadOnly]
 
@@ -102,14 +102,6 @@ class ColorViewSet(ModelViewSet):
         return Color.objects.all() if _es_admin(self.request) else Color.objects.filter(estado=True)
 
 class ProductoViewSet(ModelViewSet):
-    """
-    CU04 - CRUD completo de productos.
-    BUG ENCONTRADO Y CORREGIDO: tenía permission_classes = [IsClienteOrReadOnly],
-    lo que significaba que un CLIENTE (no un admin) era el único rol
-    autorizado a crear/editar/eliminar productos - claramente invertido.
-    Ahora usa IsAdminEmpresaOrReadOnly: lectura libre (catálogo público),
-    escritura solo para SUPER_ADMIN/ADMIN_EMPRESA.
-    """
     serializer_class = ProductoSerializer
     permission_classes = [IsAdminEmpresaOrReadOnly]
 
@@ -139,14 +131,21 @@ class ProductoViewSet(ModelViewSet):
         return queryset.distinct()
 
 class ProductoVarianteViewSet(ModelViewSet):
-    """CU04 - CRUD completo de variantes (talla/color/precio/stock)."""
     serializer_class = ProductoVarianteSerializer
     permission_classes = [IsAdminEmpresaOrReadOnly]
 
     def get_queryset(self):
         if _es_admin(self.request):
-            return ProductoVariante.objects.all()
-        return ProductoVariante.objects.filter(estado__in=["DISPONIBLE", "AGOTADO"])
+            queryset = ProductoVariante.objects.all()
+        else:
+            queryset = ProductoVariante.objects.filter(estado__in=["DISPONIBLE", "AGOTADO"])
+
+        busqueda = self.request.query_params.get("busqueda")
+        if busqueda:
+            queryset = queryset.filter(
+                Q(codigo_producto__icontains=busqueda) | Q(id_producto__nombre__icontains=busqueda)
+            )
+        return queryset
 
 class ProveedorViewSet(ModelViewSet):
     queryset = Proveedor.objects.filter(estado="ACTIVO")

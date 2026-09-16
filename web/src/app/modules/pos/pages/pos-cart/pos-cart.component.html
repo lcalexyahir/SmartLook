@@ -1,0 +1,121 @@
+<div class="pos-container">
+  <h2>Punto de Venta</h2>
+
+  <!-- Comprobante tras registrar la venta -->
+  <div *ngIf="ventaConfirmada" class="receipt">
+    <h3>Venta registrada</h3>
+    <p>Venta #{{ ventaConfirmada.id_venta }} - {{ ventaConfirmada.sucursal }}</p>
+    <p>Cajero: {{ ventaConfirmada.usuario }}</p>
+    <p>Método de pago: {{ ventaConfirmada.metodo_pago }}</p>
+
+    <table class="receipt-table">
+      <thead>
+        <tr>
+          <th>Prenda</th>
+          <th>Cant.</th>
+          <th>Precio</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of ventaConfirmada.items">
+          <td>{{ item.variante }}</td>
+          <td>{{ item.cantidad }}</td>
+          <td>Bs {{ item.precio_unitario }}</td>
+          <td>Bs {{ item.subtotal }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="receipt-total">Total: Bs {{ ventaConfirmada.total }}</p>
+
+    <button type="button" class="btn btn-accent" (click)="nuevaVenta()">Nueva venta</button>
+  </div>
+
+  <!-- Armado de la venta -->
+  <div *ngIf="!ventaConfirmada" class="pos-layout">
+    <div class="search-panel">
+      <label for="busqueda">Buscar prenda (código o nombre)</label>
+      <div class="search-row">
+        <input
+          id="busqueda"
+          type="text"
+          [(ngModel)]="terminoBusqueda"
+          (keyup.enter)="buscar()"
+          placeholder="Ej: CAM-001 o Camisa Oxford"
+        />
+        <button type="button" class="btn btn-secondary" (click)="buscar()">Buscar</button>
+      </div>
+
+      <div *ngIf="buscando">Buscando...</div>
+
+      <div class="results" *ngIf="!buscando && resultados.length > 0">
+        <div class="result-item" *ngFor="let r of resultados">
+          <div class="result-info">
+            <span class="result-name">{{ r.nombre_completo }}</span>
+            <span class="result-price">Bs {{ r.precio }} - Stock: {{ r.cantidad }}</span>
+          </div>
+          <button type="button" class="btn btn-accent" (click)="agregarItem(r)">Agregar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sale-panel">
+      <h3>Venta actual</h3>
+
+      <div *ngIf="items.length === 0" class="empty-state">
+        Sin prendas agregadas.
+      </div>
+
+      <div class="cart-item" *ngFor="let item of items">
+        <span class="item-name">{{ item.nombre }}</span>
+        <div class="item-qty">
+          <button type="button" (click)="decrementar(item)">-</button>
+          <span>{{ item.cantidad }}</span>
+          <button type="button" (click)="incrementar(item)">+</button>
+        </div>
+        <span class="item-subtotal">Bs {{ item.precio * item.cantidad }}</span>
+        <button type="button" class="btn-link btn-danger" (click)="quitar(item)">Quitar</button>
+      </div>
+
+      <div class="sale-total">
+        <span>Total</span>
+        <span class="total-value">Bs {{ total }}</span>
+      </div>
+
+      <div class="form-group">
+        <label for="sucursal">Sucursal</label>
+        <select id="sucursal" [(ngModel)]="sucursalSeleccionada">
+          <option [ngValue]="null">-- Selecciona --</option>
+          <option *ngFor="let s of sucursales" [ngValue]="s.id_sucursal">{{ s.nombre }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="metodoPago">Método de pago</label>
+        <select id="metodoPago" [(ngModel)]="metodoPago" (change)="onMetodoPagoChange()">
+          <option value="EFECTIVO">Efectivo</option>
+          <option value="TARJETA">Tarjeta (datáfono físico)</option>
+          <option value="QR">QR</option>
+        </select>
+      </div>
+
+      <div *ngIf="metodoPago === 'QR'" class="qr-block">
+        <p class="qr-hint">Mostrale este código al cliente para que pague desde su app bancaria.</p>
+        <img *ngIf="qrDataUrl" [src]="qrDataUrl" alt="Código QR de pago" class="qr-image" />
+        <button type="button" class="btn-link" (click)="generarQr()">Actualizar QR</button>
+      </div>
+
+      <p class="error-message" *ngIf="error">{{ error }}</p>
+
+      <button
+        type="button"
+        class="btn btn-accent btn-block"
+        [disabled]="registrando"
+        (click)="registrarVenta()"
+      >
+        {{ registrando ? 'Registrando...' : 'Registrar Venta' }}
+      </button>
+    </div>
+  </div>
+</div>

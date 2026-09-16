@@ -1,20 +1,15 @@
 from django.db import transaction
 from apps.inventory.services import StockService
 from apps.inventory.models import StockItem
+from apps.catalog.models import ProductoVariante
 from common.utils import log_audit
-from .models import Cart, Order, OrderItem
+from .models import Cart, Order, OrderItem, PosSale, PosSaleItem
 from .integrations.stripe_payment import crear_intento_pago, verificar_pago, PagoRechazadoError
 
 
 class CheckoutService:
     @staticmethod
     def iniciar_checkout(cliente, sucursal):
-        """
-        CU15 (paso 1) - Valida el carrito y stock, crea una Order en
-        PENDIENTE (referencia_pago = id del PaymentIntent de Stripe) y
-        devuelve el client_secret para que el frontend muestre el
-        campo de tarjeta y confirme el cobro.
-        """
         cart = Cart.objects.filter(id_cliente=cliente, estado="ACTIVO").first()
         if not cart or not cart.cartitem_set.exists():
             raise ValueError("El carrito está vacío.")
@@ -51,13 +46,6 @@ class CheckoutService:
     @staticmethod
     @transaction.atomic
     def confirmar_pago(cliente, referencia_pago):
-        """
-        CU15 (paso 2) - El cliente ya confirmó la tarjeta en el
-        navegador con Stripe.js. Verificamos server-to-server que
-        Stripe efectivamente cobró, y recién ahí cerramos la orden:
-        creamos los OrderItem, descontamos stock (cierra CU10) y
-        marcamos el carrito como CONVERTIDO.
-        """
         order = Order.objects.select_for_update().filter(
             id_cliente=cliente, referencia_pago=referencia_pago, estado="PENDIENTE"
         ).first()
@@ -113,3 +101,72 @@ class CheckoutService:
         )
 
         return order
+
+
+class PosSaleService:
+    @staticmethod
+    @transaction.atomic
+    def registrar_venta(cajero, sucursal, items_data, metodo_pago):
+        """
+        CU16 - Registra una venta presencial. items_data: lista de
+        {"id_variante": <int>, "cantidad": <int>}. Valida stock,
+        descuenta inventario (cierra CU10 para el flujo presencial)
+        y crea PosSale + PosSaleItem, todo en una transacción.
+        """
+        if not items_data:
+            raise ValueError("La venta debe tener al menos una prenda.")
+
+        variantes = {}
+        for item in items_data:
+            try:
+                variante = ProductoVariante.objects.get(pk=item["id_variante"])
+            except ProductoVariante.DoesNotExist:
+                raise ValueError(f"La prenda con id {item['id_variante']} no existe.")
+            variantes[variante.id_variante] = variante
+
+            stock = StockItem.objects.filter(id_sucursal=sucursal, id_variante=variante).first()
+            if not stock or stock.cantidad < item["cantidad"]:
+                raise ValueError(f"Stock insuficiente de '{variante}' en {sucursal.nombre}.")
+
+        total = sum(
+            variantes[item["id_variante"]].precio * item["cantidad"] for item in items_data
+        )
+
+        venta = PosSale.objects.create(
+            id_sucursal=sucursal,
+            id_usuario=cajero,
+            total=total,
+            metodo_pago=metodo_pago,
+        )
+
+        for item in items_data:
+            variante = variantes[item["id_variante"]]
+            PosSaleItem.objects.create(
+                id_venta=venta,
+                id_variante=variante,
+                cantidad=item["cantidad"],
+                precio_unitario=variante.precio,
+                subtotal=variante.precio * item["cantidad"],
+            )
+            StockService.registrar_movimiento(
+                sucursal=sucursal,
+                variante=variante,
+                usuario=cajero,
+                tipo="SALIDA",
+                cantidad=item["cantidad"],
+                motivo=f"Venta presencial - Venta #{venta.id_venta}",
+            )
+
+        log_audit(
+            usuario=cajero,
+            accion="VENTA_PRESENCIAL",
+            tabla_afectada="pos_sale",
+            registro_id=venta.id_venta,
+            descripcion=(
+                f"{cajero.nombres} {cajero.apellidos} registró una venta "
+                f"presencial en {sucursal.nombre} - Venta #{venta.id_venta} - "
+                f"Bs {venta.total} ({metodo_pago})"
+            ),
+        )
+
+        return venta

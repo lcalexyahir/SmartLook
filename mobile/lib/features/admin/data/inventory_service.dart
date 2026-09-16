@@ -1,10 +1,10 @@
 // mobile/lib/features/admin/data/inventory_service.dart
 //
-// Archivo NUEVO. Consume /api/inventory/stock/, /api/inventory/movimientos/
-// y /api/inventory/movimientos/registrar/ (backend ya existente, con el
-// bug de MovementCreateView corregido en views.py). También usa
-// /api/catalog/sucursales/ y /api/catalog/variantes/ para llenar los
-// selectores del formulario de registro.
+// Consume /api/inventory/stock/, /api/inventory/movimientos/ y
+// /api/inventory/movimientos/registrar/, además de /api/catalog/sucursales/
+// y /api/catalog/variantes/ para selectores.
+// NUEVO (CU16): getVariantes() acepta un parámetro opcional de búsqueda
+// (código o nombre) para el mostrador de caja.
 
 import '../../../core/network/api_client.dart';
 
@@ -31,8 +31,11 @@ class InventoryService {
     return (data['results'] ?? data) as List<dynamic>;
   }
 
-  Future<List<dynamic>> getVariantes() async {
-    final response = await apiClient.dio.get('/catalog/variantes/');
+  Future<List<dynamic>> getVariantes({String? busqueda}) async {
+    final response = await apiClient.dio.get(
+      '/catalog/variantes/',
+      queryParameters: busqueda != null && busqueda.isNotEmpty ? {'busqueda': busqueda} : null,
+    );
     final data = response.data;
     return (data['results'] ?? data) as List<dynamic>;
   }

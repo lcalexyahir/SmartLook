@@ -1,14 +1,16 @@
 // mobile/lib/features/admin/presentation/admin_home_screen.dart
 //
-// MODIFICADO (CU12): se agrega la tarjeta "Reservas", que navega a
-// ReservationManagementScreen (el encargado ve todas las reservas con
-// el nombre del cliente, y puede confirmar/completar/cancelar).
+// MODIFICADO (CU16): se agrega la tarjeta "Punto de Venta" (navega a
+// PosCartScreen) y se corrige la etiqueta del encabezado, que antes
+// decía "SUPER_ADMIN" fijo sin importar el rol real del usuario - ahora
+// esta pantalla también la usa el CAJERO.
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../pos/presentation/pos_cart_screen.dart';
 import 'user_management_screen.dart';
 import 'permission_management_screen.dart';
 import 'bitacora_list_screen.dart';
@@ -31,6 +33,7 @@ class AdminHomeScreen extends StatelessWidget {
 
     final secciones = <_SeccionAdmin>[
       _SeccionAdmin('Dashboard', Icons.dashboard_outlined, 'dashboard'),
+      _SeccionAdmin('Punto de Venta', Icons.point_of_sale_outlined, 'pos'),
       _SeccionAdmin('Usuarios y Roles', Icons.people_outline, 'usuarios'),
       _SeccionAdmin('Productos', Icons.checkroom_outlined, 'productos'),
       _SeccionAdmin('Atributos de Producto', Icons.straighten_outlined, 'atributos'),
@@ -42,6 +45,10 @@ class AdminHomeScreen extends StatelessWidget {
       _SeccionAdmin('Clientes', Icons.person_outline, 'clientes'),
       _SeccionAdmin('Bitácora', Icons.receipt_long_outlined, 'bitacora'),
     ];
+
+    final nombreRol = usuario != null && usuario.roles.isNotEmpty
+        ? usuario.roles.first.nombre
+        : '';
 
     return Scaffold(
       backgroundColor: AppColors.panelBg,
@@ -83,7 +90,7 @@ class AdminHomeScreen extends StatelessWidget {
               ),
             ),
             child: Text(
-              usuario != null ? '${usuario.nombreCompleto} · SUPER_ADMIN' : 'SUPER_ADMIN',
+              usuario != null ? '${usuario.nombreCompleto} · $nombreRol' : nombreRol,
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
@@ -115,11 +122,11 @@ class AdminHomeScreen extends StatelessWidget {
                           ),
                         );
                         break;
-                      case 'usuarios':
+                      case 'pos':
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const UserManagementScreen(),
+                            builder: (context) => const PosCartScreen(),
                           ),
                         );
                         break;

@@ -1,6 +1,6 @@
 // web/src/app/app-routing.module.ts
 //
-// MODIFICADO (CU14): se agrega la ruta 'cart'.
+// MODIFICADO (CU16): se agrega la ruta 'pos'.
 
 import { NgModule } from '@angular/core';
 import {
@@ -42,6 +42,14 @@ const routes: Routes = [
         loadChildren: () =>
           import('./modules/cart/cart.module')
             .then(m => m.CartModule)
+      },
+      {
+        path: 'pos',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'] },
+        loadChildren: () =>
+          import('./modules/pos/pos.module')
+            .then(m => m.PosModule)
       },
       {
         path: 'inventory',

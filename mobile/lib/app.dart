@@ -1,15 +1,3 @@
-// mobile/lib/app.dart
-//
-// Archivo YA EXISTENTE. Cambios:
-// - SplashScreen._checkAuth() ahora llama a intentarRestaurarSesion()
-//   antes de decidir a dónde navegar (antes revisaba isAuthenticated
-//   directo, que siempre daba false al reabrir la app porque _currentUser
-//   vivía solo en memoria).
-// - La redirección ahora depende del rol: SUPER_ADMIN -> /admin,
-//   CLIENTE -> /catalog, sin sesión -> /login.
-// - Se agrega la ruta '/admin' (placeholder por ahora, se construye en
-//   el siguiente paso).
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -19,6 +7,7 @@ import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
 import 'features/client/presentation/client_home_screen.dart';
 import 'features/admin/presentation/admin_home_screen.dart';
+import 'features/pos/presentation/pos_cart_screen.dart';
 
 class SmartLookApp extends StatelessWidget {
   const SmartLookApp({super.key});
@@ -36,6 +25,7 @@ class SmartLookApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/catalog': (context) => const ClientHomeScreen(),
         '/admin': (context) => const AdminHomeScreen(),
+        '/pos': (context) => const PosCartScreen(),
       },
     );
   }
@@ -61,8 +51,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final authService = context.read<AuthService>();
 
-    // Antes: solo miraba authService.isAuthenticated, que siempre daba
-    // false al reabrir la app (la sesión nunca se restauraba de verdad).
     final sesionRestaurada = await authService.intentarRestaurarSesion();
     if (!mounted) return;
 
@@ -71,9 +59,12 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    final esSuperAdmin = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
+    // NUEVO (CU16): CAJERO ahora también va al dashboard (AdminHomeScreen,
+    // ya trae la tarjeta "Punto de Venta"), en vez de directo a /pos.
+    final esStaff = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
+    final esCajero = authService.currentUser?.hasRole('CAJERO') ?? false;
 
-    if (esSuperAdmin) {
+    if (esStaff || esCajero) {
       Navigator.pushReplacementNamed(context, '/admin');
     } else {
       Navigator.pushReplacementNamed(context, '/catalog');

@@ -24,6 +24,9 @@ dependencies:
   # Pagos
   flutter_stripe: ^11.1.0
   
+  # Código QR (CU16 - punto de venta)
+  qr_flutter: ^4.1.0
+  
   # Almacenamiento
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^9.2.4

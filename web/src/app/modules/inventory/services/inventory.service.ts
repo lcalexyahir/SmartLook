@@ -1,9 +1,4 @@
 // web/src/app/modules/inventory/services/inventory.service.ts
-//
-// Archivo YA EXISTENTE. getStockItems() ahora acepta un varianteId
-// opcional para CU08 (consulta de disponibilidad del cliente).
-// getMovements(), registerMovement(), getSucursales() y getVariantes()
-// quedan igual.
 
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -32,7 +27,8 @@ export class InventoryService {
     return this.apiService.get('/catalog/sucursales/');
   }
 
-  getVariantes(): Observable<any> {
-    return this.apiService.get('/catalog/variantes/');
+  // NUEVO (CU16): parámetro opcional de búsqueda para el mostrador de caja.
+  getVariantes(busqueda?: string): Observable<any> {
+    return this.apiService.get('/catalog/variantes/', busqueda ? { busqueda } : {});
   }
 }

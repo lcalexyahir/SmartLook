@@ -6,7 +6,7 @@ from apps.users_auth.models import Cliente
 from apps.catalog.models import Sucursal
 from .models import Cart, CartItem, Order, OrderItem, PosSale
 from .serializers import CartSerializer, CartItemSerializer, OrderSerializer, PosSaleSerializer
-from .services import CheckoutService
+from .services import CheckoutService, PosSaleService
 
 class CartViewSet(ReadOnlyModelViewSet):
     serializer_class = CartSerializer
@@ -24,11 +24,6 @@ class CartViewSet(ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def checkout(self, request):
-        """
-        CU15 (paso 1) - Body: { "id_sucursal": <int> }
-        Devuelve la orden en PENDIENTE y el client_secret de Stripe
-        para que el frontend muestre el campo de tarjeta.
-        """
         cliente = Cliente.objects.get(id_usuario=request.user)
         sucursal_id = request.data.get("id_sucursal")
 
@@ -51,9 +46,6 @@ class CartViewSet(ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def confirmar_pago(self, request):
-        """
-        CU15 (paso 2) - Body: { "referencia_pago": "<payment_intent_id>" }
-        """
         cliente = Cliente.objects.get(id_usuario=request.user)
         referencia_pago = request.data.get("referencia_pago")
 
@@ -96,7 +88,42 @@ class OrderViewSet(ReadOnlyModelViewSet):
         cliente = Cliente.objects.get(id_usuario=self.request.user)
         return Order.objects.filter(id_cliente=cliente).order_by("-fecha_creacion")
 
-class PosSaleViewSet(ModelViewSet):
-    queryset = PosSale.objects.all()
+class PosSaleViewSet(ReadOnlyModelViewSet):
+    """
+    CU16 - Solo lectura por el router estándar; el registro real de la
+    venta pasa por la acción 'registrar' (necesita validar stock y
+    crear los items, no un simple create() de DRF).
+    """
+    queryset = PosSale.objects.all().order_by("-fecha_venta")
     serializer_class = PosSaleSerializer
     permission_classes = [IsCajero]
+
+    @action(detail=False, methods=["post"])
+    def registrar(self, request):
+        """
+        Body: {
+          "id_sucursal": <int>,
+          "metodo_pago": "EFECTIVO" | "TARJETA" | "QR",
+          "items": [{"id_variante": <int>, "cantidad": <int>}, ...]
+        }
+        """
+        sucursal_id = request.data.get("id_sucursal")
+        metodo_pago = request.data.get("metodo_pago")
+        items = request.data.get("items", [])
+
+        if not sucursal_id:
+            return Response({"error": "Debe indicar la sucursal."}, status=400)
+        if metodo_pago not in ("EFECTIVO", "TARJETA", "QR"):
+            return Response({"error": "Método de pago inválido."}, status=400)
+
+        try:
+            sucursal = Sucursal.objects.get(pk=sucursal_id)
+        except Sucursal.DoesNotExist:
+            return Response({"error": "Sucursal no encontrada."}, status=400)
+
+        try:
+            venta = PosSaleService.registrar_venta(request.user, sucursal, items, metodo_pago)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        return Response(PosSaleSerializer(venta).data, status=201)
