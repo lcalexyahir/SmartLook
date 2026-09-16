@@ -11,7 +11,7 @@
   <div *ngIf="ordenConfirmada" class="success-state">
     <p>¡Compra realizada con éxito!</p>
     <p>Orden #{{ ordenConfirmada.id_orden }} - Total Bs {{ ordenConfirmada.total }}</p>
-    <p>Referencia de pago: {{ ordenConfirmada.referencia_pago }}</p>
+    <p>Referencia de pago (Stripe): {{ ordenConfirmada.referencia_pago }}</p>
     <a routerLink="/catalog" class="btn btn-accent">Seguir comprando</a>
   </div>
 
@@ -35,7 +35,8 @@
       <span class="total-value">Bs {{ carrito.total }}</span>
     </div>
 
-    <div class="form-group">
+    <!-- Paso 1: elegir sucursal -->
+    <div class="form-group" *ngIf="!mostrarFormularioPago">
       <label for="sucursal">Sucursal de entrega/retiro</label>
       <select id="sucursal" [(ngModel)]="sucursalSeleccionada">
         <option [ngValue]="null">-- Selecciona una sucursal --</option>
@@ -46,12 +47,30 @@
     <p class="error-message" *ngIf="errorPago">{{ errorPago }}</p>
 
     <button
+      *ngIf="!mostrarFormularioPago"
       type="button"
       class="btn btn-accent btn-block"
-      [disabled]="procesandoPago"
-      (click)="procesarPago()"
+      [disabled]="iniciandoPago"
+      (click)="iniciarPago()"
     >
-      {{ procesandoPago ? 'Procesando pago...' : 'Proceder al Pago' }}
+      {{ iniciandoPago ? 'Preparando pago...' : 'Continuar al pago' }}
     </button>
+
+    <!-- Paso 2: ingresar tarjeta (Stripe Elements) -->
+    <div *ngIf="mostrarFormularioPago" class="payment-form">
+      <label>Datos de la tarjeta</label>
+      <div id="card-element" class="card-element"></div>
+      <p class="card-hint">Tarjeta de prueba: 4242 4242 4242 4242, cualquier fecha futura y CVC.</p>
+
+      <button
+        type="button"
+        class="btn btn-accent btn-block"
+        [disabled]="confirmandoPago"
+        (click)="confirmarPago()"
+      >
+        {{ confirmandoPago ? 'Procesando pago...' : 'Pagar Bs ' + carrito.total }}
+      </button>
+      <button type="button" class="btn-link" (click)="cancelarPago()">Cancelar</button>
+    </div>
   </div>
 </div>

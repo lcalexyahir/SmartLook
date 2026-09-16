@@ -3,16 +3,19 @@ from apps.inventory.services import StockService
 from apps.inventory.models import StockItem
 from common.utils import log_audit
 from .models import Cart, Order, OrderItem
-from .integrations.pasarela_pago import procesar_pago, PagoRechazadoError
+from .integrations.stripe_payment import crear_intento_pago, verificar_pago, PagoRechazadoError
 
 
 class CheckoutService:
     @staticmethod
-    @transaction.atomic
-    def procesar_checkout(cliente, sucursal):
-        cart = Cart.objects.select_for_update().filter(
-            id_cliente=cliente, estado="ACTIVO"
-        ).first()
+    def iniciar_checkout(cliente, sucursal):
+        """
+        CU15 (paso 1) - Valida el carrito y stock, crea una Order en
+        PENDIENTE (referencia_pago = id del PaymentIntent de Stripe) y
+        devuelve el client_secret para que el frontend muestre el
+        campo de tarjeta y confirme el cobro.
+        """
+        cart = Cart.objects.filter(id_cliente=cliente, estado="ACTIVO").first()
         if not cart or not cart.cartitem_set.exists():
             raise ValueError("El carrito está vacío.")
 
@@ -30,18 +33,50 @@ class CheckoutService:
         total = sum(item.id_variante.precio * item.cantidad for item in items)
 
         try:
-            referencia_pago = procesar_pago(total)
+            payment_intent_id, client_secret = crear_intento_pago(total)
         except PagoRechazadoError as e:
-            raise ValueError(f"Pago rechazado: {e}")
+            raise ValueError(f"No se pudo iniciar el pago: {e}")
 
         order = Order.objects.create(
             id_cliente=cliente,
             id_sucursal=sucursal,
             total=total,
-            estado="PAGADA",
+            estado="PENDIENTE",
             metodo_pago="TARJETA",
-            referencia_pago=referencia_pago,
+            referencia_pago=payment_intent_id,
         )
+
+        return order, client_secret
+
+    @staticmethod
+    @transaction.atomic
+    def confirmar_pago(cliente, referencia_pago):
+        """
+        CU15 (paso 2) - El cliente ya confirmó la tarjeta en el
+        navegador con Stripe.js. Verificamos server-to-server que
+        Stripe efectivamente cobró, y recién ahí cerramos la orden:
+        creamos los OrderItem, descontamos stock (cierra CU10) y
+        marcamos el carrito como CONVERTIDO.
+        """
+        order = Order.objects.select_for_update().filter(
+            id_cliente=cliente, referencia_pago=referencia_pago, estado="PENDIENTE"
+        ).first()
+        if not order:
+            raise ValueError("No se encontró una orden pendiente con esa referencia.")
+
+        try:
+            verificar_pago(referencia_pago)
+        except PagoRechazadoError as e:
+            raise ValueError(f"Pago rechazado: {e}")
+
+        cart = Cart.objects.select_for_update().filter(
+            id_cliente=cliente, estado="ACTIVO"
+        ).first()
+        if not cart or not cart.cartitem_set.exists():
+            raise ValueError("El carrito ya no tiene items para completar la orden.")
+
+        items = list(cart.cartitem_set.select_related("id_variante"))
+
         for item in items:
             OrderItem.objects.create(
                 id_orden=order,
@@ -51,7 +86,7 @@ class CheckoutService:
                 subtotal=item.id_variante.precio * item.cantidad,
             )
             StockService.registrar_movimiento(
-                sucursal=sucursal,
+                sucursal=order.id_sucursal,
                 variante=item.id_variante,
                 usuario=cliente.id_usuario,
                 tipo="SALIDA",
@@ -59,11 +94,12 @@ class CheckoutService:
                 motivo=f"Venta digital - Orden #{order.id_orden}",
             )
 
+        order.estado = "PAGADA"
+        order.save()
+
         cart.estado = "CONVERTIDO"
         cart.save()
 
-        # NUEVO: registro legible en Bitácora, con nombre del cliente,
-        # además del genérico que ya deja el AuditMiddleware.
         log_audit(
             usuario=cliente.id_usuario,
             accion="COMPRA_DIGITAL",
@@ -71,7 +107,7 @@ class CheckoutService:
             registro_id=order.id_orden,
             descripcion=(
                 f"{cliente.id_usuario.nombres} {cliente.id_usuario.apellidos} "
-                f"realizó una compra digital en {sucursal.nombre} - "
+                f"realizó una compra digital en {order.id_sucursal.nombre} - "
                 f"Orden #{order.id_orden} - Bs {order.total}"
             ),
         )

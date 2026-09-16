@@ -1,6 +1,7 @@
 // mobile/lib/features/cart_checkout/presentation/cart_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:provider/provider.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/theme/app_colors.dart';
@@ -20,9 +21,15 @@ class _CartScreenState extends State<CartScreen> {
 
   List<dynamic> _sucursales = [];
   int? _sucursalSeleccionada;
-  bool _procesandoPago = false;
   String? _errorPago;
   Map<String, dynamic>? _ordenConfirmada;
+
+  // Flujo de pago con Stripe
+  bool _mostrarFormularioPago = false;
+  bool _iniciandoPago = false;
+  bool _confirmandoPago = false;
+  String? _clientSecret;
+  bool _tarjetaCompleta = false;
 
   @override
   void initState() {
@@ -75,35 +82,81 @@ class _CartScreenState extends State<CartScreen> {
     _cargar();
   }
 
-  Future<void> _procesarPago() async {
+  String _extraerError(Object e, String fallback) {
+    try {
+      final data = (e as dynamic).response?.data;
+      if (data is Map && data['error'] != null) return data['error'].toString();
+    } catch (_) {}
+    return fallback;
+  }
+
+  // Paso 1: crea el intento de pago y muestra el formulario de tarjeta.
+  Future<void> _iniciarPago() async {
     if (_sucursalSeleccionada == null) {
       setState(() => _errorPago = 'Selecciona una sucursal de entrega/retiro.');
       return;
     }
     setState(() {
-      _procesandoPago = true;
+      _iniciandoPago = true;
       _errorPago = null;
     });
     try {
-      final orden = await _cartService.checkout(_sucursalSeleccionada!);
+      final data = await _cartService.checkout(_sucursalSeleccionada!);
       setState(() {
-        _ordenConfirmada = orden;
-        _procesandoPago = false;
+        _clientSecret = data['client_secret'] as String;
+        _mostrarFormularioPago = true;
+        _iniciandoPago = false;
       });
-      _cargar();
     } catch (e) {
-      String mensaje = 'No se pudo procesar el pago. Intenta nuevamente.';
-      try {
-        final data = (e as dynamic).response?.data;
-        if (data is Map && data['error'] != null) {
-          mensaje = data['error'].toString();
-        }
-      } catch (_) {}
       setState(() {
-        _errorPago = mensaje;
-        _procesandoPago = false;
+        _errorPago = _extraerError(e, 'No se pudo iniciar el pago. Intenta nuevamente.');
+        _iniciandoPago = false;
       });
     }
+  }
+
+  // Paso 2: confirma la tarjeta con Stripe y cierra la orden en el backend.
+  Future<void> _confirmarPago() async {
+    if (_clientSecret == null || !_tarjetaCompleta) return;
+    setState(() {
+      _confirmandoPago = true;
+      _errorPago = null;
+    });
+    try {
+      final paymentIntent = await Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: _clientSecret!,
+        data: const PaymentMethodParams.card(
+          paymentMethodData: PaymentMethodData(),
+        ),
+      );
+
+      final orden = await _cartService.confirmarPago(paymentIntent.id);
+      setState(() {
+        _ordenConfirmada = orden;
+        _mostrarFormularioPago = false;
+        _confirmandoPago = false;
+      });
+      _cargar();
+    } on StripeException catch (e) {
+      setState(() {
+        _errorPago = e.error.localizedMessage ?? 'La tarjeta fue rechazada.';
+        _confirmandoPago = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorPago = _extraerError(e, 'No se pudo cerrar la orden.');
+        _confirmandoPago = false;
+      });
+    }
+  }
+
+  void _cancelarPago() {
+    setState(() {
+      _mostrarFormularioPago = false;
+      _clientSecret = null;
+      _errorPago = null;
+      _tarjetaCompleta = false;
+    });
   }
 
   @override
@@ -122,7 +175,7 @@ class _CartScreenState extends State<CartScreen> {
               const SizedBox(height: 8),
               Text('Orden #${_ordenConfirmada!['id_orden']} - Total Bs ${_ordenConfirmada!['total']}'),
               const SizedBox(height: 4),
-              Text('Referencia de pago: ${_ordenConfirmada!['referencia_pago']}'),
+              Text('Referencia de pago (Stripe): ${_ordenConfirmada!['referencia_pago']}'),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => setState(() => _ordenConfirmada = null),
@@ -196,7 +249,7 @@ class _CartScreenState extends State<CartScreen> {
                 ),
       bottomNavigationBar: _carrito == null || items.isEmpty
           ? null
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -212,30 +265,66 @@ class _CartScreenState extends State<CartScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<int>(
-                    value: _sucursalSeleccionada,
-                    decoration: const InputDecoration(
-                      labelText: 'Sucursal de entrega/retiro',
-                      border: OutlineInputBorder(),
+
+                  // Paso 1: elegir sucursal
+                  if (!_mostrarFormularioPago) ...[
+                    DropdownButtonFormField<int>(
+                      value: _sucursalSeleccionada,
+                      decoration: const InputDecoration(
+                        labelText: 'Sucursal de entrega/retiro',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _sucursales
+                          .map((s) => DropdownMenuItem<int>(
+                                value: s['id_sucursal'] as int,
+                                child: Text(s['nombre'].toString()),
+                              ))
+                          .toList(),
+                      onChanged: (value) => setState(() => _sucursalSeleccionada = value),
                     ),
-                    items: _sucursales
-                        .map((s) => DropdownMenuItem<int>(
-                              value: s['id_sucursal'] as int,
-                              child: Text(s['nombre'].toString()),
-                            ))
-                        .toList(),
-                    onChanged: (value) => setState(() => _sucursalSeleccionada = value),
-                  ),
+                  ],
+
                   if (_errorPago != null) ...[
                     const SizedBox(height: 8),
                     Text(_errorPago!, style: const TextStyle(color: AppColors.danger)),
                   ],
+
                   const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _procesandoPago ? null : _procesarPago,
-                    style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                    child: Text(_procesandoPago ? 'Procesando pago...' : 'Proceder al Pago'),
-                  ),
+
+                  if (!_mostrarFormularioPago)
+                    ElevatedButton(
+                      onPressed: _iniciandoPago ? null : _iniciarPago,
+                      style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                      child: Text(_iniciandoPago ? 'Preparando pago...' : 'Continuar al pago'),
+                    ),
+
+                  // Paso 2: campo de tarjeta real (SDK de Stripe)
+                  if (_mostrarFormularioPago) ...[
+                    const Text('Datos de la tarjeta', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    CardField(
+                      enablePostalCode: false,
+                      numberHintText: '4242 4242 4242 4242',
+                      onCardChanged: (details) {
+                        setState(() => _tarjetaCompleta = details?.complete ?? false);
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Tarjeta de prueba: 4242 4242 4242 4242, fecha futura y CVC.',
+                      style: TextStyle(fontSize: 12, color: AppColors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: (_confirmandoPago || !_tarjetaCompleta) ? null : _confirmarPago,
+                      style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                      child: Text(_confirmandoPago ? 'Procesando pago...' : 'Pagar Bs ${_carrito!['total']}'),
+                    ),
+                    TextButton(
+                      onPressed: _confirmandoPago ? null : _cancelarPago,
+                      child: const Text('Cancelar'),
+                    ),
+                  ],
                 ],
               ),
             ),

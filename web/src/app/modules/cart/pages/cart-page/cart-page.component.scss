@@ -90,6 +90,7 @@
     border: none;
     cursor: pointer;
     font-size: 0.85rem;
+    color: #0f3460;
 
     &.btn-danger {
       color: #f44336;
@@ -134,4 +135,29 @@
   color: #f44336;
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
+}
+
+.payment-form {
+  margin-top: 1rem;
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  .card-element {
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: white;
+    margin-bottom: 0.5rem;
+  }
+
+  .card-hint {
+    font-size: 0.8rem;
+    color: #999;
+    margin-bottom: 1rem;
+  }
 }

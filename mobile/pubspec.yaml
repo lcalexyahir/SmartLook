@@ -21,6 +21,9 @@ dependencies:
   dio: ^5.4.0
   connectivity_plus: ^6.0.2
   
+  # Pagos
+  flutter_stripe: ^11.1.0
+  
   # Almacenamiento
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^9.2.4

@@ -30,4 +30,8 @@ export class CartService {
   checkout(idSucursal: number): Observable<any> {
     return this.apiService.post('/sales/carritos/checkout/', { id_sucursal: idSucursal });
   }
+
+  confirmarPago(referenciaPago: string): Observable<any> {
+    return this.apiService.post('/sales/carritos/confirmar_pago/', { referencia_pago: referenciaPago });
+  }
 }

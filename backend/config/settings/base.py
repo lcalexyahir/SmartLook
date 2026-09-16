@@ -15,6 +15,10 @@ SECRET_KEY = os.getenv(
 
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:4200")
 
+# NUEVO (CU15): credenciales de Stripe (modo test).
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+
 
 DEBUG = False
 
@@ -70,8 +74,8 @@ MIDDLEWARE = [
 
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 
-    # NUEVO: registra en Bitácora cada POST/PUT/PATCH/DELETE de un
-    # usuario autenticado (compras, reservas, altas, etc).
+    # Registra en Bitácora cada POST/PUT/PATCH/DELETE de un usuario
+    # autenticado (compras, reservas, altas, etc).
     "common.middleware.audit_middleware.AuditMiddleware",
 ]
 

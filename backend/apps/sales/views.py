@@ -24,6 +24,11 @@ class CartViewSet(ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def checkout(self, request):
+        """
+        CU15 (paso 1) - Body: { "id_sucursal": <int> }
+        Devuelve la orden en PENDIENTE y el client_secret de Stripe
+        para que el frontend muestre el campo de tarjeta.
+        """
         cliente = Cliente.objects.get(id_usuario=request.user)
         sucursal_id = request.data.get("id_sucursal")
 
@@ -35,11 +40,32 @@ class CartViewSet(ReadOnlyModelViewSet):
             return Response({"error": "Sucursal no encontrada."}, status=400)
 
         try:
-            order = CheckoutService.procesar_checkout(cliente, sucursal)
+            order, client_secret = CheckoutService.iniciar_checkout(cliente, sucursal)
         except ValueError as e:
             return Response({"error": str(e)}, status=400)
 
-        return Response(OrderSerializer(order).data, status=201)
+        return Response({
+            "orden": OrderSerializer(order).data,
+            "client_secret": client_secret,
+        }, status=201)
+
+    @action(detail=False, methods=["post"])
+    def confirmar_pago(self, request):
+        """
+        CU15 (paso 2) - Body: { "referencia_pago": "<payment_intent_id>" }
+        """
+        cliente = Cliente.objects.get(id_usuario=request.user)
+        referencia_pago = request.data.get("referencia_pago")
+
+        if not referencia_pago:
+            return Response({"error": "Falta la referencia de pago."}, status=400)
+
+        try:
+            order = CheckoutService.confirmar_pago(cliente, referencia_pago)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        return Response(OrderSerializer(order).data, status=200)
 
 class CartItemViewSet(ModelViewSet):
     serializer_class = CartItemSerializer
