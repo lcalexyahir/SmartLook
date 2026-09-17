@@ -132,13 +132,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Imagen
+                    // MODIFICADO (CU17 - prep): antes usaba siempre
+                    // _product!.imagenProducto, sin importar la variante
+                    // seleccionada. Ahora prioriza imagenVariante de la
+                    // variante activa, con fallback a la foto general del
+                    // producto - mismo criterio que ya se aplicó en la web.
                     Container(
                       height: 350,
                       width: double.infinity,
                       color: AppColors.greyLight,
-                      child: _product!.imagenProducto != null
+                      child: (_selectedVariant?.imagenVariante ?? _product!.imagenProducto) != null
                           ? CachedNetworkImage(
-                              imageUrl: _product!.imagenProducto!,
+                              imageUrl: (_selectedVariant?.imagenVariante ?? _product!.imagenProducto)!,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => const Center(
                                 child: CircularProgressIndicator(),

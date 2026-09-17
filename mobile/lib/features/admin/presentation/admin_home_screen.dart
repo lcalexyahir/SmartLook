@@ -1,9 +1,4 @@
 // mobile/lib/features/admin/presentation/admin_home_screen.dart
-//
-// MODIFICADO (CU16): se agrega la tarjeta "Punto de Venta" (navega a
-// PosCartScreen) y se corrige la etiqueta del encabezado, que antes
-// decía "SUPER_ADMIN" fijo sin importar el rol real del usuario - ahora
-// esta pantalla también la usa el CAJERO.
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../pos/presentation/pos_cart_screen.dart';
+import '../../catalog/presentation/product_list_screen.dart';
 import 'user_management_screen.dart';
 import 'permission_management_screen.dart';
 import 'bitacora_list_screen.dart';
@@ -33,6 +29,7 @@ class AdminHomeScreen extends StatelessWidget {
 
     final secciones = <_SeccionAdmin>[
       _SeccionAdmin('Dashboard', Icons.dashboard_outlined, 'dashboard'),
+      _SeccionAdmin('Catálogo', Icons.shopping_bag_outlined, 'catalogo'),
       _SeccionAdmin('Punto de Venta', Icons.point_of_sale_outlined, 'pos'),
       _SeccionAdmin('Usuarios y Roles', Icons.people_outline, 'usuarios'),
       _SeccionAdmin('Productos', Icons.checkroom_outlined, 'productos'),
@@ -119,6 +116,14 @@ class AdminHomeScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const DashboardHomeScreen(),
+                          ),
+                        );
+                        break;
+                      case 'catalogo':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProductListScreen(),
                           ),
                         );
                         break;

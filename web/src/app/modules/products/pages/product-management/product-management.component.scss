@@ -1,7 +1,5 @@
 // web/src/app/modules/products/pages/product-management/product-management.component.scss
-//
-// Archivo YA EXISTENTE. Se agregan estilos del panel expandible de
-// variantes (Paso C). El resto queda igual.
+
 
 .products-container {
   padding: 2rem;
@@ -130,5 +128,36 @@
   .table-variantes {
     background: white;
     border-radius: 6px;
+  }
+}
+
+.variante-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  display: block;
+}
+
+/* ===== NUEVO: CICLO 3 - Responsive ===== */
+@media (max-width: 768px) {
+  .products-container {
+    padding: 1rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .variantes-panel {
+    padding: 1rem;
+  }
+
+  .table,
+  .table-variantes {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
   }
 }

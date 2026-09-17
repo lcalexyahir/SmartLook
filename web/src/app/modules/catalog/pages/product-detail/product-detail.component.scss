@@ -8,6 +8,8 @@
 }
 
 .product-gallery {
+  min-width: 0;
+
   img {
     width: 100%;
     border-radius: 8px;
@@ -16,6 +18,8 @@
 }
 
 .product-details {
+  min-width: 0;
+
   .product-brand {
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -155,3 +159,26 @@
   color: #4caf50;
 }
 /* ===== FIN NUEVO ===== */
+
+/* ===== NUEVO: CICLO 3 - Responsive ===== */
+@media (max-width: 768px) {
+  .detail-container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1.25rem;
+  }
+
+  .product-gallery img {
+    max-height: 360px;
+  }
+
+  .product-details .product-meta {
+    gap: 1rem;
+  }
+
+  .availability-section .availability-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

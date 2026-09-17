@@ -31,44 +31,47 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: product.imagenProducto != null
-                  ? CachedNetworkImage(
-                      imageUrl: product.imagenProducto!,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        height: 180,
-                        color: AppColors.greyLight,
-                        child: const Center(
-                          child: CircularProgressIndicator(),
+            // MODIFICADO: antes tenía altura fija (180) y podía desbordar
+            // la celda del grid según el ancho de pantalla. Ahora ocupa
+            // el espacio que sobra después del bloque de texto de abajo,
+            // así nunca desborda sin importar el childAspectRatio del grid.
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: product.imagenProducto != null
+                    ? CachedNetworkImage(
+                        imageUrl: product.imagenProducto!,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: AppColors.greyLight,
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        height: 180,
+                        errorWidget: (context, url, error) => Container(
+                          color: AppColors.greyLight,
+                          child: const Icon(
+                            Icons.image_not_supported,
+                            size: 48,
+                            color: AppColors.grey,
+                          ),
+                        ),
+                      )
+                    : Container(
                         color: AppColors.greyLight,
                         child: const Icon(
-                          Icons.image_not_supported,
+                          Icons.shopping_bag,
                           size: 48,
                           color: AppColors.grey,
                         ),
                       ),
-                    )
-                  : Container(
-                      height: 180,
-                      color: AppColors.greyLight,
-                      child: const Icon(
-                        Icons.shopping_bag,
-                        size: 48,
-                        color: AppColors.grey,
-                      ),
-                    ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(

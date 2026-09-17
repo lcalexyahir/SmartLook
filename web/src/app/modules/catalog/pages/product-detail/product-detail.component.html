@@ -1,6 +1,6 @@
 <div class="detail-container" *ngIf="product && !loading">
   <div class="product-gallery">
-    <img [src]="product.imagen_producto || 'assets/placeholder.png'" [alt]="product.nombre">
+    <img [src]="selectedVariant?.imagen_variante || product.imagen_producto || 'assets/placeholder.png'" [alt]="product.nombre">
   </div>
   <div class="product-details">
     <span class="product-brand">{{ product.marca?.nombre || 'SmartLook' }}</span>

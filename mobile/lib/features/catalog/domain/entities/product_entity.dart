@@ -11,6 +11,7 @@ class ProductEntity {
   final List<String> tallasDisponibles;
   final List<String> coloresDisponibles;
   final int stockTotal;
+  final List<ProductVariant> variantes;
 
   ProductEntity({
     required this.id,
@@ -23,6 +24,7 @@ class ProductEntity {
     required this.tallasDisponibles,
     required this.coloresDisponibles,
     required this.stockTotal,
+    required this.variantes,
   });
 
   factory ProductEntity.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,10 @@ class ProductEntity {
       tallasDisponibles: tallas,
       coloresDisponibles: colores,
       stockTotal: stockTotal,
+      // MODIFICADO: se guardan las variantes reales (ya vienen completas
+      // en el JSON del listado) en vez de descartarlas, para que
+      // toModel() pueda reconstruir un Product con precio real.
+      variantes: product.variantes,
     );
   }
 
@@ -63,7 +69,7 @@ class ProductEntity {
       tipoPrenda: tipoPrenda,
       imagenProducto: imagenProducto,
       estado: 'ACTIVO',
-      variantes: [],
+      variantes: variantes,
     );
   }
 }

@@ -241,7 +241,9 @@ class Color {
 
   int get colorValue {
     if (codigoHex != null && codigoHex!.startsWith('#')) {
-      return int.tryParse(codigoHex!.substring(1), radix: 16) ?? 0xFF808080;
+      final hex = codigoHex!.substring(1);
+      final hexConAlfa = hex.length == 6 ? 'FF$hex' : hex;
+      return int.tryParse(hexConAlfa, radix: 16) ?? 0xFF808080;
     }
     return 0xFF808080;
   }

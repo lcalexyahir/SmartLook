@@ -11,8 +11,13 @@ import { StockItem, InventoryMovement } from '../../../core/models/inventory.int
 export class InventoryService {
   constructor(private apiService: ApiService) {}
 
+
   getStockItems(varianteId?: number): Observable<any> {
-    return this.apiService.get<StockItem[]>('/inventory/stock/', { variante: varianteId });
+    const params: any = { page_size: 50 };
+    if (varianteId) {
+      params.variante = varianteId;
+    }
+    return this.apiService.get<StockItem[]>('/inventory/stock/', params);
   }
 
   getMovements(): Observable<any> {
@@ -27,8 +32,11 @@ export class InventoryService {
     return this.apiService.get('/catalog/sucursales/');
   }
 
-  // NUEVO (CU16): parámetro opcional de búsqueda para el mostrador de caja.
   getVariantes(busqueda?: string): Observable<any> {
-    return this.apiService.get('/catalog/variantes/', busqueda ? { busqueda } : {});
+    const params: any = { page_size: 50 };
+    if (busqueda) {
+      params.busqueda = busqueda;
+    }
+    return this.apiService.get('/catalog/variantes/', params);
   }
 }

@@ -1,10 +1,4 @@
 // web/src/app/modules/products/pages/product-management/product-management.component.ts
-//
-// Archivo YA EXISTENTE. Se agrega gestión de variantes (Paso C): cada
-// producto se puede expandir para ver/crear/editar/eliminar sus
-// variantes (talla+color+precio+stock), sin salir de esta pantalla.
-// Reutiliza p.variantes (ya viene anidado en cada producto desde el
-// backend) en vez de pedirlas por separado.
 
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -63,6 +57,7 @@ export class ProductManagementComponent implements OnInit {
       codigo_producto: ['', Validators.required],
       precio: ['', [Validators.required, Validators.min(0)]],
       cantidad: [0, [Validators.required, Validators.min(0)]],
+      imagen_variante: [''],
       estado: ['DISPONIBLE']
     });
 
@@ -194,6 +189,7 @@ export class ProductManagementComponent implements OnInit {
       codigo_producto: variante.codigo_producto,
       precio: variante.precio,
       cantidad: variante.cantidad,
+      imagen_variante: variante.imagen_variante,
       estado: variante.estado
     });
     this.showFormVariante = true;

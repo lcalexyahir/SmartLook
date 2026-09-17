@@ -7,6 +7,6 @@ router.register("stock", StockItemViewSet, basename="stock")
 router.register("movimientos", InventoryMovementViewSet, basename="movimientos")
 
 urlpatterns = [
-    path("", include(router.urls)),
     path("movimientos/registrar/", MovementCreateView.as_view(), name="registrar-movimiento"),
+    path("", include(router.urls)),
 ]
