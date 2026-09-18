@@ -1,3 +1,4 @@
+// mobile/lib/features/catalog/presentation/product_detail_screen.dart
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,6 +10,7 @@ import '../../../shared/widgets/loading_overlay.dart';
 import '../data/repositories/catalog_repository_impl.dart';
 import '../data/sources/catalog_remote_source.dart';
 import '../../cart_checkout/data/cart_service.dart';
+import '../../virtual_tryon/presentation/ar_tryon_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
@@ -28,7 +30,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ===== NUEVO: CU08 - Disponibilidad por Sucursal =====
   List<dynamic> _stockPorSucursal = [];
   bool _loadingStock = false;
-
   late final CartService _cartService;
   bool _addingToCart = false;
   String _cartMessage = '';
@@ -281,6 +282,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               }).toList(),
                             ),
                           ],
+                          // ===== NUEVO: CU17 - Botón del Vestidor Virtual =====
+                          if (_selectedVariant != null) ...[
+                            const SizedBox(height: 16),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ArTryOnScreen(
+                                      productoId: _product!.idProducto,
+                                      overlayImageUrl: _selectedVariant!.imagenVariante ??
+                                          _product!.imagenProducto,
+                                      nombreProducto: _product!.nombre,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.camera_alt),
+                              label: const Text('Probar en Vestidor Virtual (AR)'),
+                            ),
+                          ],
+                          // ===== FIN NUEVO =====
                           // ===== NUEVO: CU08 - Disponibilidad por Sucursal =====
                           if (_selectedVariant != null) ...[
                             const SizedBox(height: 24),

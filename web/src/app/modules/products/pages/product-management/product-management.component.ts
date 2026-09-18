@@ -1,5 +1,4 @@
 // web/src/app/modules/products/pages/product-management/product-management.component.ts
-
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProductService } from '../../services/product.service';
@@ -18,7 +17,6 @@ export class ProductManagementComponent implements OnInit {
   colecciones: any[] = [];
   tallas: any[] = [];
   colores: any[] = [];
-
   loading = false;
   showForm = false;
   editandoId: number | null = null;
@@ -72,7 +70,6 @@ export class ProductManagementComponent implements OnInit {
     this.attributeService.getColecciones().subscribe({ next: (d: any) => this.colecciones = d.results || d, error: () => this.colecciones = [] });
     this.attributeService.getTallas().subscribe({ next: (d: any) => this.tallas = d.results || d, error: () => this.tallas = [] });
     this.attributeService.getColores().subscribe({ next: (d: any) => this.colores = d.results || d, error: () => this.colores = [] });
-
     this.productService.getProductos().subscribe({
       next: (d: any) => {
         this.productos = d.results || d;
@@ -95,7 +92,6 @@ export class ProductManagementComponent implements OnInit {
   }
 
   // ---- Producto ----
-
   nuevoProducto(): void {
     this.editandoId = null;
     this.errorMessage = null;
@@ -138,13 +134,10 @@ export class ProductManagementComponent implements OnInit {
   onSubmit(): void {
     if (this.productForm.invalid) return;
     this.errorMessage = null;
-
     const datos = this.limpiarPayload(this.productForm.value);
-
     const peticion = this.editandoId
       ? this.productService.actualizarProducto(this.editandoId, datos)
       : this.productService.crearProducto(datos);
-
     peticion.subscribe({
       next: () => {
         this.cancelar();
@@ -163,7 +156,6 @@ export class ProductManagementComponent implements OnInit {
   }
 
   // ---- Variantes ----
-
   toggleVariantes(producto: any): void {
     if (this.productoExpandidoId === producto.id_producto) {
       this.productoExpandidoId = null;
@@ -204,13 +196,10 @@ export class ProductManagementComponent implements OnInit {
   guardarVariante(): void {
     if (this.varianteForm.invalid || this.productoExpandidoId === null) return;
     this.errorVariante = null;
-
     const datos = { ...this.varianteForm.value, id_producto: this.productoExpandidoId };
-
     const peticion = this.editandoVarianteId
       ? this.productService.actualizarVariante(this.editandoVarianteId, datos)
       : this.productService.crearVariante(datos);
-
     peticion.subscribe({
       next: () => {
         this.cancelarVariante();
