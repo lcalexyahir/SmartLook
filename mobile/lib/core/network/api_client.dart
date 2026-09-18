@@ -11,7 +11,10 @@ class ApiClient {
   // OJO: conserva tu baseUrl actual tal como la tengas configurada
   // (la IP de tu hotspot, o la que estés usando ahora). No la reemplaces
   // por este valor de ejemplo.
-  static const String baseUrl = 'http://192.168.137.1:8000/api';
+  static const String baseUrl = String.fromEnvironment(
+   'API_URL',
+   defaultValue: 'https://smartlook-api.onrender.com/api',
+  );
 
   late final Dio dio;
   final _storage = const FlutterSecureStorage();
@@ -20,8 +23,8 @@ class ApiClient {
     dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        connectTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
