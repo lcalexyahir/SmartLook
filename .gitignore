@@ -24,3 +24,12 @@ dist/
 # Environment
 .env
 .env.*
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+staticfiles/
+
+# Volcados de base de datos
+*.sql
