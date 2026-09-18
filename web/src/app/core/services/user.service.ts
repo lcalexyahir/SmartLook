@@ -1,20 +1,16 @@
 // web/src/app/core/services/user.service.ts
-//
-// Archivo YA EXISTENTE. Se agrega getClientes(). El resto del archivo
-// (getUsuarios, getRoles, crearUsuario, actualizarUsuario, eliminarUsuario,
-// getPermisos, getRolPermisos, actualizarRolPermisos, getBitacora) queda
-// igual.
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
 
-  private apiUrl = 'http://127.0.0.1:8000/api/auth';
+    private apiUrl = `${environment.apiUrl}/auth`;
 
   constructor(
     private http: HttpClient

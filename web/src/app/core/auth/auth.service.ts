@@ -1,12 +1,10 @@
 // web/src/app/core/auth/auth.service.ts
-//
-// Se agregan los métodos obtenerRoles() y esCliente() al final de la
-// clase. El resto del archivo queda igual al original.
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 export interface LoginResponse {
 
@@ -25,7 +23,7 @@ export interface LoginResponse {
 })
 export class AuthService {
 
-  private apiUrl = 'http://127.0.0.1:8000/api/auth';
+    private apiUrl = `${environment.apiUrl}/auth`;
 
   private usuarioSubject =
     new BehaviorSubject<any>(null);
