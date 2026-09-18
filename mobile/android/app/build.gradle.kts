@@ -35,7 +35,11 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
 
-            // Reglas de R8 (ver proguard-rules.pro): ignora clases de Stripe que no se usan.
+            // R8 recortaba clases que WorkManager necesita al arrancar y la app se cerraba.
+            // Se desactiva el recorte de código y de recursos en release.
+            isMinifyEnabled = false
+            isShrinkResources = false
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
