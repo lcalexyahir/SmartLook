@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewChecked } from '@angular/core';
 import { loadStripe, Stripe, StripeCardElement, StripeElements } from '@stripe/stripe-js';
 import { environment } from '../../../../../environments/environment';
-import { CartService } from '../../services/cart.service';
+import { CartService, DatosEntrega } from '../../services/cart.service';
 import { InventoryService } from '../../../inventory/services/inventory.service';
 
 @Component({
@@ -16,6 +16,17 @@ export class CartPageComponent implements OnInit, AfterViewChecked {
   sucursalSeleccionada: number | null = null;
   errorPago: string | null = null;
   ordenConfirmada: any = null;
+
+  // CU21: retiro en sucursal o delivery a domicilio
+  tipoEntrega: 'RETIRO' | 'DELIVERY' = 'RETIRO';
+  direccion = '';
+  referencia = '';
+  latitud: number | null = null;
+  longitud: number | null = null;
+  ubicando = false;
+  cotizando = false;
+  cotizacion: any = null;
+  sucursalMapa: { nombre: string; latitud: number | null; longitud: number | null } | null = null;
 
   // Flujo de pago con Stripe
   mostrarFormularioPago = false;
@@ -55,12 +66,30 @@ export class CartPageComponent implements OnInit, AfterViewChecked {
     }
   }
 
+  // Total a cobrar: prendas + envío (solo si es delivery y ya hay cotización).
+  get totalAPagar(): number {
+    const productos = Number(this.carrito?.total) || 0;
+    const envio = this.tipoEntrega === 'DELIVERY' && this.cotizacion
+      ? Number(this.cotizacion.costo_envio) || 0
+      : 0;
+    return productos + envio;
+  }
+
   cargarCarrito(): void {
     this.loading = true;
     this.cartService.getCarritoActual().subscribe({
       next: (data) => {
         this.carrito = data;
         this.loading = false;
+        // Si cambió la cantidad de prendas, el costo de envío también puede cambiar.
+        if (
+          this.tipoEntrega === 'DELIVERY' &&
+          this.latitud !== null &&
+          !this.ordenConfirmada &&
+          data?.items?.length > 0
+        ) {
+          this.cotizar();
+        }
       },
       error: () => {
         this.loading = false;
@@ -97,16 +126,116 @@ export class CartPageComponent implements OnInit, AfterViewChecked {
     });
   }
 
+  // ---- CU21: entrega ----
+
+  onCambioTipoEntrega(): void {
+    this.cotizacion = null;
+    this.errorPago = null;
+    // Al volver a Delivery con una ubicación ya elegida, se recotiza sola.
+    if (this.tipoEntrega === 'DELIVERY' && this.latitud !== null && this.sucursalSeleccionada) {
+      this.cotizar();
+    }
+  }
+
+  onCambioSucursal(): void {
+    this.cotizacion = null;
+    this.errorPago = null;
+    // Sucursal elegida, con sus coordenadas, para dibujarla en el mapa.
+    const s = this.sucursales.find(x => x.id_sucursal === this.sucursalSeleccionada);
+    this.sucursalMapa = s && s.latitud != null && s.longitud != null
+      ? { nombre: s.nombre, latitud: Number(s.latitud), longitud: Number(s.longitud) }
+      : null;
+    if (this.tipoEntrega === 'DELIVERY' && this.latitud !== null) {
+      this.cotizar();
+    }
+  }
+
+  usarMiUbicacion(): void {
+    if (!navigator.geolocation) {
+      this.errorPago = 'Tu navegador no permite obtener la ubicación.';
+      return;
+    }
+    this.ubicando = true;
+    this.errorPago = null;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.latitud = pos.coords.latitude;
+        this.longitud = pos.coords.longitude;
+        this.ubicando = false;
+        this.cotizar();
+      },
+      () => {
+        this.ubicando = false;
+        this.errorPago = 'No se pudo obtener tu ubicación. Permite el acceso a la ubicación e intenta de nuevo.';
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  }
+
+  // El cliente tocó el mapa o arrastró el punto: se guarda y se recotiza el envío.
+  onUbicacionMapa(punto: { lat: number; lng: number }): void {
+    this.latitud = punto.lat;
+    this.longitud = punto.lng;
+    this.cotizar();
+  }
+
+  cotizar(): void {
+    if (!this.sucursalSeleccionada) {
+      this.errorPago = 'Selecciona primero la sucursal que despacha tu pedido.';
+      return;
+    }
+    if (this.latitud === null || this.longitud === null) {
+      return;
+    }
+    this.cotizando = true;
+    this.errorPago = null;
+    this.cartService.cotizarEnvio(this.sucursalSeleccionada, this.latitud, this.longitud).subscribe({
+      next: (data) => {
+        this.cotizacion = data;
+        this.cotizando = false;
+      },
+      error: (err) => {
+        this.cotizacion = null;
+        this.cotizando = false;
+        this.errorPago = err?.error?.error || 'No se pudo cotizar el envío.';
+      }
+    });
+  }
+
   // Paso 1: valida el carrito/stock en el backend y crea el intento de pago en Stripe.
   iniciarPago(): void {
     if (!this.sucursalSeleccionada) {
-      this.errorPago = 'Selecciona una sucursal de entrega/retiro.';
+      this.errorPago = this.tipoEntrega === 'DELIVERY'
+        ? 'Selecciona la sucursal que despacha tu pedido.'
+        : 'Selecciona una sucursal de entrega/retiro.';
       return;
     }
+
+    let entrega: DatosEntrega | undefined;
+    if (this.tipoEntrega === 'DELIVERY') {
+      if (!this.direccion.trim()) {
+        this.errorPago = 'Ingresa tu dirección de entrega.';
+        return;
+      }
+      if (this.latitud === null || this.longitud === null) {
+        this.errorPago = 'Marca tu ubicación en el mapa o toca "Usar mi ubicación" para calcular el envío.';
+        return;
+      }
+      if (!this.cotizacion) {
+        this.errorPago = 'Espera a que se calcule el costo de envío.';
+        return;
+      }
+      entrega = {
+        direccion: this.direccion.trim(),
+        referencia: this.referencia.trim(),
+        latitud: this.latitud,
+        longitud: this.longitud
+      };
+    }
+
     this.iniciandoPago = true;
     this.errorPago = null;
-
-    this.cartService.checkout(this.sucursalSeleccionada).subscribe({
+    this.cartService.checkout(this.sucursalSeleccionada, entrega).subscribe({
       next: (data) => {
         this.clientSecret = data.client_secret;
         this.ordenPendiente = data.orden;

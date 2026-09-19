@@ -4,10 +4,12 @@ import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CartRoutingModule } from './cart-routing.module';
 import { CartPageComponent } from './pages/cart-page/cart-page.component';
+import { MapPickerComponent } from './components/map-picker/map-picker.component';
 
 @NgModule({
   declarations: [
-    CartPageComponent
+    CartPageComponent,
+    MapPickerComponent
   ],
   imports: [
     CommonModule,

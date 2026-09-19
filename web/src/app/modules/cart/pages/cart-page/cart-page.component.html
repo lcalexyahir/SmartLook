@@ -11,6 +11,12 @@
   <div *ngIf="ordenConfirmada" class="success-state">
     <p>¡Compra realizada con éxito!</p>
     <p>Orden #{{ ordenConfirmada.id_orden }} - Total Bs {{ ordenConfirmada.total }}</p>
+    <p *ngIf="ordenConfirmada.tipo_entrega === 'DELIVERY'">
+      Envío a domicilio (Bs {{ ordenConfirmada.costo_envio }}): {{ ordenConfirmada.delivery?.direccion }}
+    </p>
+    <p *ngIf="ordenConfirmada.tipo_entrega !== 'DELIVERY'">
+      Retiro en sucursal: {{ ordenConfirmada.sucursal }}
+    </p>
     <p>Referencia de pago (Stripe): {{ ordenConfirmada.referencia_pago }}</p>
     <a routerLink="/catalog" class="btn btn-accent">Seguir comprando</a>
   </div>
@@ -31,17 +37,79 @@
     </div>
 
     <div class="cart-summary">
-      <span>Total</span>
+      <span>{{ tipoEntrega === 'DELIVERY' ? 'Subtotal' : 'Total' }}</span>
       <span class="total-value">Bs {{ carrito.total }}</span>
+    </div>
+
+    <div class="cart-summary cart-summary--envio" *ngIf="tipoEntrega === 'DELIVERY' && cotizacion">
+      <span>Envío ({{ cotizacion.distancia_km }} km)</span>
+      <span>Bs {{ cotizacion.costo_envio | number:'1.2-2' }}</span>
+    </div>
+
+    <div class="cart-summary" *ngIf="tipoEntrega === 'DELIVERY' && cotizacion">
+      <span>Total a pagar</span>
+      <span class="total-value">Bs {{ totalAPagar | number:'1.2-2' }}</span>
+    </div>
+
+    <!-- CU21: retiro en sucursal o delivery -->
+    <div class="delivery-options" *ngIf="!mostrarFormularioPago">
+      <label [class.selected]="tipoEntrega === 'RETIRO'">
+        <input type="radio" name="tipoEntrega" value="RETIRO" [(ngModel)]="tipoEntrega" (ngModelChange)="onCambioTipoEntrega()" />
+        Retiro en sucursal
+      </label>
+      <label [class.selected]="tipoEntrega === 'DELIVERY'">
+        <input type="radio" name="tipoEntrega" value="DELIVERY" [(ngModel)]="tipoEntrega" (ngModelChange)="onCambioTipoEntrega()" />
+        Delivery a domicilio
+      </label>
     </div>
 
     <!-- Paso 1: elegir sucursal -->
     <div class="form-group" *ngIf="!mostrarFormularioPago">
-      <label for="sucursal">Sucursal de entrega/retiro</label>
-      <select id="sucursal" [(ngModel)]="sucursalSeleccionada">
+      <label for="sucursal">{{ tipoEntrega === 'DELIVERY' ? 'Sucursal que despacha tu pedido' : 'Sucursal de retiro' }}</label>
+      <select id="sucursal" [(ngModel)]="sucursalSeleccionada" (ngModelChange)="onCambioSucursal()">
         <option [ngValue]="null">-- Selecciona una sucursal --</option>
         <option *ngFor="let s of sucursales" [ngValue]="s.id_sucursal">{{ s.nombre }}</option>
       </select>
+    </div>
+
+    <!-- CU21: datos de entrega (solo delivery) -->
+    <div class="delivery-box" *ngIf="tipoEntrega === 'DELIVERY' && !mostrarFormularioPago">
+      <div class="form-group">
+        <label for="direccion">Dirección de entrega</label>
+        <input id="direccion" type="text" [(ngModel)]="direccion" maxlength="250"
+               placeholder="Ej: Av. San Martín #123, Equipetrol" />
+      </div>
+      <div class="form-group">
+        <label for="referencia">Referencia (opcional)</label>
+        <input id="referencia" type="text" [(ngModel)]="referencia" maxlength="250"
+               placeholder="Ej: Edificio azul, timbre 3B" />
+      </div>
+
+      <button type="button" class="btn-location" [disabled]="ubicando || cotizando" (click)="usarMiUbicacion()">
+        {{ ubicando ? 'Obteniendo ubicación...' : (latitud !== null ? 'Actualizar mi ubicación' : 'Usar mi ubicación') }}
+      </button>
+
+      <p class="location-status" *ngIf="latitud !== null">
+        Ubicación obtenida ({{ latitud | number:'1.4-4' }}, {{ longitud | number:'1.4-4' }})
+      </p>
+      <p class="location-status" *ngIf="cotizando">Calculando el costo de envío...</p>
+
+      <app-map-picker
+        style="display: block; margin-top: 0.75rem;"
+        [sucursal]="sucursalMapa"
+        [latitud]="latitud"
+        [longitud]="longitud"
+        (ubicacionChange)="onUbicacionMapa($event)"
+      ></app-map-picker>
+
+      <div class="quote-box" *ngIf="cotizacion && !cotizando">
+        <div>Distancia: <strong>{{ cotizacion.distancia_km }} km</strong>
+          <span class="quote-source">
+            ({{ cotizacion.fuente_distancia === 'openrouteservice' ? 'ruta real por calles' : 'distancia aproximada' }})
+          </span>
+        </div>
+        <div>Costo de envío: <strong>Bs {{ cotizacion.costo_envio | number:'1.2-2' }}</strong></div>
+      </div>
     </div>
 
     <p class="error-message" *ngIf="errorPago">{{ errorPago }}</p>
@@ -61,14 +129,13 @@
       <label>Datos de la tarjeta</label>
       <div id="card-element" class="card-element"></div>
       <p class="card-hint">Tarjeta de prueba: 4242 4242 4242 4242, cualquier fecha futura y CVC.</p>
-
       <button
         type="button"
         class="btn btn-accent btn-block"
         [disabled]="confirmandoPago"
         (click)="confirmarPago()"
       >
-        {{ confirmandoPago ? 'Procesando pago...' : 'Pagar Bs ' + carrito.total }}
+        {{ confirmandoPago ? 'Procesando pago...' : 'Pagar Bs ' + (totalAPagar | number:'1.2-2') }}
       </button>
       <button type="button" class="btn-link" (click)="cancelarPago()">Cancelar</button>
     </div>

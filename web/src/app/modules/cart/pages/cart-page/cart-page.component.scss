@@ -161,3 +161,92 @@
     margin-bottom: 1rem;
   }
 }
+
+
+// CU21: entrega
+.form-group input {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.delivery-options {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+
+  label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-weight: 600;
+    color: #1a1a2e;
+
+    input {
+      margin: 0;
+    }
+
+    &.selected {
+      border-color: #0f3460;
+      background: #eef3fb;
+    }
+  }
+}
+
+.delivery-box {
+  background: white;
+  border-radius: 8px;
+  padding: 0.5rem 1rem 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.btn-location {
+  padding: 0.6rem 1rem;
+  border: 1px solid #0f3460;
+  background: white;
+  color: #0f3460;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.location-status {
+  font-size: 0.85rem;
+  color: #555;
+  margin: 0.5rem 0 0;
+}
+
+.quote-box {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #eef3fb;
+  border-radius: 6px;
+  color: #1a1a2e;
+
+  .quote-source {
+    font-size: 0.8rem;
+    color: #777;
+  }
+}
+
+.cart-summary--envio {
+  border-top: none;
+  margin-top: 0;
+  padding: 0.25rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}

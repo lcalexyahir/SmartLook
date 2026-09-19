@@ -2,6 +2,13 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 
+export interface DatosEntrega {
+  direccion: string;
+  referencia?: string;
+  latitud: number;
+  longitud: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -27,8 +34,28 @@ export class CartService {
     return this.apiService.delete(`/sales/carrito-items/${idItem}/`);
   }
 
-  checkout(idSucursal: number): Observable<any> {
-    return this.apiService.post('/sales/carritos/checkout/', { id_sucursal: idSucursal });
+  // CU21: cotiza el envío a domicilio (distancia y costo) para el carrito actual.
+  cotizarEnvio(idSucursal: number, latitud: number, longitud: number): Observable<any> {
+    return this.apiService.post('/sales/carritos/cotizar-envio/', {
+      id_sucursal: idSucursal,
+      latitud,
+      longitud
+    });
+  }
+
+  // CU21: sin "entrega" es retiro en sucursal; con "entrega" es delivery.
+  checkout(idSucursal: number, entrega?: DatosEntrega): Observable<any> {
+    const body: any = {
+      id_sucursal: idSucursal,
+      tipo_entrega: entrega ? 'DELIVERY' : 'RETIRO'
+    };
+    if (entrega) {
+      body.direccion = entrega.direccion;
+      body.referencia = entrega.referencia || '';
+      body.latitud = entrega.latitud;
+      body.longitud = entrega.longitud;
+    }
+    return this.apiService.post('/sales/carritos/checkout/', body);
   }
 
   confirmarPago(referenciaPago: string): Observable<any> {
