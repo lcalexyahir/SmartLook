@@ -1,15 +1,26 @@
+from decimal import Decimal
+
 from django.db import transaction
 from apps.inventory.services import StockService
 from apps.inventory.models import StockItem
 from apps.catalog.models import ProductoVariante
 from common.utils import log_audit
-from .models import Cart, Order, OrderItem, PosSale, PosSaleItem
+from .models import Cart, Delivery, Order, OrderItem, PosSale, PosSaleItem
 from .integrations.stripe_payment import crear_intento_pago, verificar_pago, PagoRechazadoError
+from .integrations.envio import cotizar, EnvioError
 
 
 class CheckoutService:
     @staticmethod
-    def iniciar_checkout(cliente, sucursal):
+    def iniciar_checkout(cliente, sucursal, tipo_entrega="RETIRO", entrega=None):
+        """
+        tipo_entrega: "RETIRO" (el cliente recoge en la sucursal) o "DELIVERY".
+        entrega (solo DELIVERY): {"direccion", "referencia", "latitud", "longitud"}.
+        El costo de envío se calcula aquí, en el servidor.
+        """
+        if tipo_entrega not in ("RETIRO", "DELIVERY"):
+            raise ValueError("Tipo de entrega inválido.")
+
         cart = Cart.objects.filter(id_cliente=cliente, estado="ACTIVO").first()
         if not cart or not cart.cartitem_set.exists():
             raise ValueError("El carrito está vacío.")
@@ -25,22 +36,58 @@ class CheckoutService:
                     f"Stock insuficiente de '{item.id_variante}' en {sucursal.nombre}."
                 )
 
-        total = sum(item.id_variante.precio * item.cantidad for item in items)
+        subtotal = sum(item.id_variante.precio * item.cantidad for item in items)
+        costo_envio = Decimal("0.00")
+        cotizacion = None
+
+        if tipo_entrega == "DELIVERY":
+            entrega = entrega or {}
+            direccion = (entrega.get("direccion") or "").strip()
+            if not direccion:
+                raise ValueError("Debe indicar la dirección de entrega.")
+            try:
+                latitud = float(entrega.get("latitud"))
+                longitud = float(entrega.get("longitud"))
+            except (TypeError, ValueError):
+                raise ValueError("Debe indicar la ubicación de entrega.")
+            if not (-90 <= latitud <= 90 and -180 <= longitud <= 180):
+                raise ValueError("La ubicación de entrega no es válida.")
+            try:
+                cotizacion = cotizar(
+                    sucursal, latitud, longitud, sum(item.cantidad for item in items)
+                )
+            except EnvioError as e:
+                raise ValueError(str(e))
+            costo_envio = cotizacion["costo_envio"]
+
+        total = subtotal + costo_envio
 
         try:
             payment_intent_id, client_secret = crear_intento_pago(total)
         except PagoRechazadoError as e:
             raise ValueError(f"No se pudo iniciar el pago: {e}")
 
-        order = Order.objects.create(
-            id_cliente=cliente,
-            id_sucursal=sucursal,
-            total=total,
-            estado="PENDIENTE",
-            metodo_pago="TARJETA",
-            referencia_pago=payment_intent_id,
-        )
-
+        with transaction.atomic():
+            order = Order.objects.create(
+                id_cliente=cliente,
+                id_sucursal=sucursal,
+                total=total,
+                estado="PENDIENTE",
+                metodo_pago="TARJETA",
+                referencia_pago=payment_intent_id,
+                tipo_entrega=tipo_entrega,
+                costo_envio=costo_envio,
+            )
+            if cotizacion:
+                Delivery.objects.create(
+                    id_orden=order,
+                    direccion=direccion,
+                    referencia=(entrega.get("referencia") or "").strip() or None,
+                    latitud=Decimal(str(round(latitud, 6))),
+                    longitud=Decimal(str(round(longitud, 6))),
+                    distancia_km=cotizacion["distancia_km"],
+                    costo_envio=costo_envio,
+                )
         return order, client_secret
 
     @staticmethod
@@ -84,7 +131,6 @@ class CheckoutService:
 
         order.estado = "PAGADA"
         order.save()
-
         cart.estado = "CONVERTIDO"
         cart.save()
 
@@ -99,7 +145,6 @@ class CheckoutService:
                 f"Orden #{order.id_orden} - Bs {order.total}"
             ),
         )
-
         return order
 
 
@@ -168,5 +213,4 @@ class PosSaleService:
                 f"Bs {venta.total} ({metodo_pago})"
             ),
         )
-
         return venta

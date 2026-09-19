@@ -19,6 +19,16 @@ FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:4200")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 
+# NUEVO (CU21): delivery. La clave de OpenRouteService va en variable de
+# entorno (nunca en el código). Las tarifas son valores de ejemplo y se pueden
+# cambiar por variable de entorno sin tocar código.
+ORS_API_KEY = os.getenv("ORS_API_KEY", "")
+DELIVERY_TARIFA_BASE = float(os.getenv("DELIVERY_TARIFA_BASE", "8"))
+DELIVERY_TARIFA_KM = float(os.getenv("DELIVERY_TARIFA_KM", "2.5"))
+DELIVERY_PRENDAS_INCLUIDAS = int(os.getenv("DELIVERY_PRENDAS_INCLUIDAS", "3"))
+DELIVERY_RECARGO_PRENDA = float(os.getenv("DELIVERY_RECARGO_PRENDA", "1"))
+DELIVERY_RADIO_MAX_KM = float(os.getenv("DELIVERY_RADIO_MAX_KM", "25"))
+
 
 DEBUG = False
 

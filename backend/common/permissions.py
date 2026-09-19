@@ -50,3 +50,11 @@ class IsAdminEmpresaOrReadOnly(BasePermission):
         return request.user.is_authenticated and request.user.roles.filter(
             nombre__in=["SUPER_ADMIN", "ADMIN_EMPRESA"]
         ).exists()
+
+
+
+class IsRepartidor(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.roles.filter(
+            nombre__in=["SUPER_ADMIN", "ADMIN_EMPRESA", "ENCARGADO_SUCURSAL", "REPARTIDOR"]
+        ).exists()
