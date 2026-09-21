@@ -45,7 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
       final esSuperAdmin = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
       final esCajero = authService.currentUser?.hasRole('CAJERO') ?? false;
 
-      if (esSuperAdmin || esCajero) {
+      final esRepartidor = authService.currentUser?.hasRole('REPARTIDOR') ?? false;
+
+      if (esRepartidor && !esSuperAdmin && !esCajero) {
+        Navigator.pushReplacementNamed(context, '/entregas');
+      } else if (esSuperAdmin || esCajero) {
         Navigator.pushReplacementNamed(context, '/admin');
       } else {
         Navigator.pushReplacementNamed(context, '/catalog');

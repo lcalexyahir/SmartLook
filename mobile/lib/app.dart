@@ -8,6 +8,7 @@ import 'features/auth/presentation/register_screen.dart';
 import 'features/client/presentation/client_home_screen.dart';
 import 'features/admin/presentation/admin_home_screen.dart';
 import 'features/pos/presentation/pos_cart_screen.dart';
+import 'features/deliveries/presentation/deliveries_screen.dart';
 
 class SmartLookApp extends StatelessWidget {
   const SmartLookApp({super.key});
@@ -26,6 +27,7 @@ class SmartLookApp extends StatelessWidget {
         '/catalog': (context) => const ClientHomeScreen(),
         '/admin': (context) => const AdminHomeScreen(),
         '/pos': (context) => const PosCartScreen(),
+        '/entregas': (context) => const DeliveriesScreen(esInicio: true),
       },
     );
   }
@@ -64,6 +66,11 @@ class _SplashScreenState extends State<SplashScreen> {
     final esStaff = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
     final esCajero = authService.currentUser?.hasRole('CAJERO') ?? false;
 
+    final esRepartidor = authService.currentUser?.hasRole('REPARTIDOR') ?? false;
+    if (esRepartidor && !esStaff && !esCajero) {
+      Navigator.pushReplacementNamed(context, '/entregas');
+      return;
+    }
     if (esStaff || esCajero) {
       Navigator.pushReplacementNamed(context, '/admin');
     } else {

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../pos/presentation/pos_cart_screen.dart';
+import '../../deliveries/presentation/deliveries_screen.dart';
 import '../../catalog/presentation/product_list_screen.dart';
 import 'user_management_screen.dart';
 import 'permission_management_screen.dart';
@@ -41,6 +42,8 @@ class AdminHomeScreen extends StatelessWidget {
       _SeccionAdmin('Proveedores', Icons.local_shipping_outlined, 'proveedores'),
       _SeccionAdmin('Clientes', Icons.person_outline, 'clientes'),
       _SeccionAdmin('Bitácora', Icons.receipt_long_outlined, 'bitacora'),
+      if (usuario != null && (usuario.hasRole('SUPER_ADMIN') || usuario.hasRole('ADMIN_EMPRESA') || usuario.hasRole('ENCARGADO_SUCURSAL')))
+        _SeccionAdmin('Entregas', Icons.delivery_dining, 'entregas'),
     ];
 
     final nombreRol = usuario != null && usuario.roles.isNotEmpty
@@ -196,6 +199,14 @@ class AdminHomeScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const BranchManagementScreen(),
+                          ),
+                        );
+                        break;
+                      case 'entregas':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const DeliveriesScreen(),
                           ),
                         );
                         break;
