@@ -47,6 +47,8 @@ class SucursalSerializer(serializers.ModelSerializer):
             "telefono",
             "estado",
             "fecha_apertura",
+            "dias_atencion",
+            "horario_atencion",
             "latitud",
             "longitud",
         ]

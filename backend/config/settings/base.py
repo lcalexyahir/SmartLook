@@ -28,7 +28,13 @@ DELIVERY_TARIFA_KM = float(os.getenv("DELIVERY_TARIFA_KM", "2.5"))
 DELIVERY_PRENDAS_INCLUIDAS = int(os.getenv("DELIVERY_PRENDAS_INCLUIDAS", "3"))
 DELIVERY_RECARGO_PRENDA = float(os.getenv("DELIVERY_RECARGO_PRENDA", "1"))
 DELIVERY_RADIO_MAX_KM = float(os.getenv("DELIVERY_RADIO_MAX_KM", "25"))
-
+# NUEVO (CU18/19/20): asistente de IA. Las claves van en variables de entorno
+# (nunca en el código). Groq es el proveedor principal y Gemini el respaldo.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+AI_TIMEOUT_SEG = int(os.getenv("AI_TIMEOUT_SEG", "15"))
 
 DEBUG = False
 
