@@ -6,6 +6,7 @@ import { CatalogRoutingModule } from './catalog-routing.module';
 import { ProductListComponent } from './pages/product-list/product-list.component';
 import { ProductDetailComponent } from './pages/product-detail/product-detail.component';
 import { SharedModule } from '../../shared/shared.module';
+import { AssistantModule } from '../assistant/assistant.module';
 
 @NgModule({
   declarations: [
@@ -16,6 +17,7 @@ import { SharedModule } from '../../shared/shared.module';
     CommonModule,
     ReactiveFormsModule,
     SharedModule,
+    AssistantModule,
     CatalogRoutingModule
   ]
 })

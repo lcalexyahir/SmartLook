@@ -1,6 +1,9 @@
 // mobile/lib/features/client/presentation/client_home_screen.dart
-
+//
+// MODIFICADO (CU18/CU19): se agrega el globo de chat del asistente virtual,
+// visible solo en la pestaña Catálogo (índice 0).
 import 'package:flutter/material.dart';
+import '../../ai_assistant/presentation/chat_bubble_fab.dart';
 import '../../catalog/presentation/product_list_screen.dart';
 import '../../reservations/presentation/reservation_status_screen.dart';
 import '../../orders/presentation/orders_screen.dart';
@@ -30,6 +33,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         index: _indiceActual,
         children: _pantallas,
       ),
+      floatingActionButton: _indiceActual == 0 ? const ChatBubbleFab() : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _indiceActual,
         selectedItemColor: AppColors.primary,

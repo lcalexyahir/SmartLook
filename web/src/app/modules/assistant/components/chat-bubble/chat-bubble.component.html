@@ -1,0 +1,72 @@
+<!-- web/src/app/modules/assistant/components/chat-bubble/chat-bubble.component.html -->
+<!-- NUEVO (CU18/CU19): globo flotante del asistente virtual (solo clientes). -->
+<ng-container *ngIf="visible">
+
+  <section class="chat-panel" *ngIf="abierto" role="dialog" aria-label="Asistente virtual SmartLook">
+    <header class="chat-header">
+      <div class="chat-title">
+        <span class="chat-avatar">SL</span>
+        <div class="chat-title-text">
+          <strong>Asistente SmartLook</strong>
+          <small>Te ayudo a elegir tu próxima prenda</small>
+        </div>
+      </div>
+      <button type="button" class="chat-close" (click)="alternar()" aria-label="Cerrar asistente">&times;</button>
+    </header>
+
+    <div class="chat-messages" #lista>
+      <div class="msg msg-bot" *ngIf="!cargandoHistorial && mensajes.length === 0">
+        ¡Hola! Soy el asistente de SmartLook. Puedo recomendarte prendas, decirte qué hay en cada sucursal y ayudarte con tus pedidos.
+      </div>
+      <div class="chat-hint" *ngIf="cargandoHistorial">Cargando conversación...</div>
+
+      <ng-container *ngFor="let m of mensajes">
+        <div class="msg"
+             [class.msg-user]="m.autor === 'cliente'"
+             [class.msg-bot]="m.autor === 'asistente'"
+             [class.msg-error]="m.error">
+          <ng-container *ngFor="let p of m.partes"><strong *ngIf="p.negrita">{{ p.texto }}</strong><ng-container *ngIf="!p.negrita">{{ p.texto }}</ng-container></ng-container>
+        </div>
+
+        <div class="cards" *ngIf="m.tarjetas.length > 0">
+          <article class="card" *ngFor="let t of m.tarjetas">
+            <img [src]="t.imagen || 'assets/placeholder.png'" [alt]="t.nombre">
+            <div class="card-body">
+              <h4>{{ t.nombre }}</h4>
+              <p class="card-price">{{ precio(t) }}</p>
+              <p class="card-meta" *ngIf="t.tallas.length > 0">Tallas: {{ t.tallas.join(', ') }}</p>
+              <p class="card-meta" *ngIf="t.sucursales.length > 0">{{ t.sucursales[0] }}</p>
+              <button type="button" class="btn btn-primary card-btn" (click)="verDetalle(t)">Ver detalle</button>
+            </div>
+          </article>
+        </div>
+      </ng-container>
+
+      <div class="msg msg-bot typing" *ngIf="cargando" aria-label="El asistente está escribiendo">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="chat-suggestions" *ngIf="mensajes.length === 0 && !cargando && !cargandoHistorial">
+      <button type="button" *ngFor="let s of sugerencias" (click)="enviar(s)">{{ s }}</button>
+    </div>
+
+    <div class="chat-input">
+      <input type="text"
+             [(ngModel)]="entrada"
+             [attr.maxlength]="maxCaracteres"
+             [disabled]="cargando"
+             (keydown.enter)="enviar()"
+             placeholder="Escribe tu consulta...">
+      <button type="button" class="chat-send" (click)="enviar()" [disabled]="cargando || !entrada.trim()" aria-label="Enviar mensaje">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 20.5v-6.2l9-2.3-9-2.3V3.5L22 12 3 20.5z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <button type="button" class="chat-bubble" (click)="alternar()" [attr.aria-label]="abierto ? 'Cerrar asistente' : 'Abrir asistente virtual'">
+    <svg *ngIf="!abierto" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="currentColor"/></svg>
+    <span *ngIf="abierto" class="chat-bubble-x">&times;</span>
+  </button>
+
+</ng-container>
