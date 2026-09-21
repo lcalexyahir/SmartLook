@@ -27,6 +27,7 @@ export class CartPageComponent implements OnInit, AfterViewChecked {
   cotizando = false;
   cotizacion: any = null;
   sucursalMapa: { nombre: string; latitud: number | null; longitud: number | null } | null = null;
+  private geocodificacionId = 0;
 
   // Flujo de pago con Stripe
   mostrarFormularioPago = false;
@@ -162,6 +163,7 @@ export class CartPageComponent implements OnInit, AfterViewChecked {
         this.latitud = pos.coords.latitude;
         this.longitud = pos.coords.longitude;
         this.ubicando = false;
+        this.completarDireccion(this.latitud, this.longitud);
         this.cotizar();
       },
       () => {
@@ -172,11 +174,32 @@ export class CartPageComponent implements OnInit, AfterViewChecked {
     );
   }
 
-  // El cliente tocó el mapa o arrastró el punto: se guarda y se recotiza el envío.
+  // El cliente tocó el mapa o arrastró el punto: se guarda, se completa la dirección y se recotiza el envío.
   onUbicacionMapa(punto: { lat: number; lng: number }): void {
     this.latitud = punto.lat;
     this.longitud = punto.lng;
+    this.completarDireccion(punto.lat, punto.lng);
     this.cotizar();
+  }
+
+  // Rellena "Dirección de entrega" con la dirección del punto elegido (OpenStreetMap / Nominatim).
+  // Se usa fetch y no HttpClient para que el token de sesión no se envíe a un servicio externo.
+  private async completarDireccion(lat: number, lng: number): Promise<void> {
+    const id = ++this.geocodificacionId;
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=es`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        return;
+      }
+      const data = await resp.json();
+      // Si el cliente movió el punto otra vez mientras esperaba, se descarta esta respuesta.
+      if (id === this.geocodificacionId && data?.display_name) {
+        this.direccion = String(data.display_name).slice(0, 250);
+      }
+    } catch {
+      // Si falla, el cliente puede escribir la dirección a mano.
+    }
   }
 
   cotizar(): void {

@@ -44,6 +44,21 @@ const routes: Routes = [
             .then(m => m.CartModule)
       },
       {
+        path: 'orders',
+        canActivate: [AuthGuard],
+        loadChildren: () =>
+          import('./modules/orders/orders.module')
+            .then(m => m.OrdersModule)
+      },
+      {
+        path: 'deliveries',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE'], permitirRepartidor: true },
+        loadChildren: () =>
+          import('./modules/deliveries/deliveries.module')
+            .then(m => m.DeliveriesModule)
+      },
+      {
         path: 'pos',
         canActivate: [AuthGuard, RoleGuard],
         data: { rolesExcluidos: ['CLIENTE'] },

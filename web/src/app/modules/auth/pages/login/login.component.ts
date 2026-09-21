@@ -49,7 +49,9 @@ export class LoginComponent implements OnInit {
         if (this.authService.esCliente()) {
           this.router.navigate(['/catalog']);
         } else {
-          this.router.navigate(['/dashboard']);
+          const roles = this.authService.obtenerRoles();
+          const esSoloRepartidor = roles.includes('REPARTIDOR') && !roles.some(r => ['SUPER_ADMIN', 'ADMIN_EMPRESA', 'ENCARGADO_SUCURSAL', 'CAJERO'].includes(r));
+          this.router.navigate([esSoloRepartidor ? '/deliveries' : '/dashboard']);
         }
       },
       error: (error) => {
