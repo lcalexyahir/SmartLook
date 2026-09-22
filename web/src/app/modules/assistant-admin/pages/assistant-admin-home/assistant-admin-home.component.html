@@ -1,0 +1,128 @@
+<!-- web/src/app/modules/assistant-admin/pages/assistant-admin-home/assistant-admin-home.component.html -->
+<!-- NUEVO (CU20): pantalla del asistente de gestión. -->
+<div class="admin-assistant">
+
+  <section class="chat-col">
+    <header class="chat-header">
+      <div class="chat-avatar">SL</div>
+      <div>
+        <h2>Asistente de gestión</h2>
+        <p>Pregunta por inventario, ventas, envíos, reservas o el vestidor virtual.</p>
+      </div>
+    </header>
+
+    <div class="chat-messages" #lista>
+      <div class="msg msg-bot" *ngIf="mensajes.length === 0">
+        Hola, puedo ayudarte a consultar el negocio. Escribe o usa el micrófono para preguntar.
+      </div>
+
+      <div class="msg"
+           *ngFor="let m of mensajes"
+           [class.msg-user]="m.esUsuario"
+           [class.msg-bot]="!m.esUsuario"
+           [class.msg-error]="m.error">
+        <ng-container *ngFor="let p of m.partes"><strong *ngIf="p.negrita">{{ p.texto }}</strong><ng-container *ngIf="!p.negrita">{{ p.texto }}</ng-container></ng-container>
+      </div>
+
+      <div class="msg msg-bot typing" *ngIf="enviando" aria-label="El asistente está escribiendo">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="chat-suggestions" *ngIf="mensajes.length === 0 && !enviando">
+      <button type="button" *ngFor="let s of sugerencias" (click)="enviar(s)">{{ s }}</button>
+    </div>
+
+    <div class="chat-input">
+      <button type="button"
+              class="mic-btn"
+              *ngIf="reconocimientoDisponible"
+              [class.mic-on]="escuchando"
+              (click)="alternarMicrofono()"
+              [attr.aria-label]="escuchando ? 'Detener grabación' : 'Preguntar por voz'">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z" fill="currentColor"/>
+          <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <input type="text"
+             [(ngModel)]="entrada"
+             [attr.maxlength]="maxCaracteres"
+             [disabled]="enviando"
+             (keydown.enter)="enviar()"
+             [placeholder]="escuchando ? 'Escuchando...' : 'Escribe tu pregunta...'">
+      <button type="button" class="send-btn" (click)="enviar()" [disabled]="enviando || !entrada.trim()" aria-label="Enviar pregunta">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 20.5v-6.2l9-2.3-9-2.3V3.5L22 12 3 20.5z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <section class="result-col">
+    <ng-container *ngIf="reporteActivo; else sinReporte">
+      <header class="result-header">
+        <div>
+          <h3>{{ reporteActivo.resultado.titulo }}</h3>
+          <p class="result-subtitle">{{ reporteActivo.resultado.subtitulo }}</p>
+        </div>
+        <div class="download-group">
+          <button type="button" (click)="descargar('pdf')" [disabled]="descargando !== null">
+            {{ descargando === 'pdf' ? 'Generando...' : 'PDF' }}
+          </button>
+          <button type="button" (click)="descargar('xlsx')" [disabled]="descargando !== null">
+            {{ descargando === 'xlsx' ? 'Generando...' : 'Excel' }}
+          </button>
+          <button type="button" (click)="descargar('html')" [disabled]="descargando !== null">
+            {{ descargando === 'html' ? 'Generando...' : 'HTML' }}
+          </button>
+        </div>
+      </header>
+
+      <div class="kpis" *ngIf="reporteActivo.resultado.kpis.length > 0">
+        <div class="kpi" *ngFor="let k of reporteActivo.resultado.kpis">
+          <span>{{ k.etiqueta }}</span>
+          <strong>{{ k.tipo === 'dinero' ? ('Bs ' + (k.valor | number:'1.2-2')) : k.valor }}</strong>
+        </div>
+      </div>
+
+      <div class="table-wrap" *ngIf="reporteActivo.resultado.filas.length > 0; else sinFilas">
+        <table>
+          <thead>
+            <tr>
+              <th *ngFor="let c of reporteActivo.resultado.columnas"
+                  [class.num]="c.tipo === 'numero' || c.tipo === 'dinero'">{{ c.nombre }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let fila of reporteActivo.resultado.filas">
+              <td *ngFor="let valor of fila; let i = index"
+                  [class.num]="reporteActivo!.resultado.columnas[i].tipo === 'numero' || reporteActivo!.resultado.columnas[i].tipo === 'dinero'">
+                {{ reporteActivo!.resultado.columnas[i].tipo === 'dinero' ? ('Bs ' + (valor | number:'1.2-2')) : valor }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #sinFilas><p class="empty">Sin filas para mostrar.</p></ng-template>
+
+      <div class="nota" *ngFor="let n of reporteActivo.resultado.notas">{{ n }}</div>
+    </ng-container>
+
+    <ng-template #sinReporte>
+      <div class="result-placeholder">
+        <p>Aquí aparecerá el resultado de tu pregunta, listo para descargar.</p>
+      </div>
+    </ng-template>
+
+    <section class="history">
+      <h4>Reportes recientes</h4>
+      <p class="empty" *ngIf="!cargandoReportes && reportes.length === 0">Todavía no generaste ningún reporte.</p>
+      <ul>
+        <li *ngFor="let r of reportes" (click)="abrirReporte(r)">
+          <span class="history-title">{{ r.titulo }}</span>
+          <span class="history-meta">{{ r.fecha }}</span>
+        </li>
+      </ul>
+    </section>
+  </section>
+
+</div>

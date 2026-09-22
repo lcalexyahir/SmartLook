@@ -1,6 +1,7 @@
 // web/src/app/app-routing.module.ts
 //
 // MODIFICADO (CU16): se agrega la ruta 'pos'.
+// MODIFICADO (CU20): se agrega la ruta 'assistant-admin'.
 
 import { NgModule } from '@angular/core';
 import {
@@ -42,21 +43,6 @@ const routes: Routes = [
         loadChildren: () =>
           import('./modules/cart/cart.module')
             .then(m => m.CartModule)
-      },
-      {
-        path: 'orders',
-        canActivate: [AuthGuard],
-        loadChildren: () =>
-          import('./modules/orders/orders.module')
-            .then(m => m.OrdersModule)
-      },
-      {
-        path: 'deliveries',
-        canActivate: [AuthGuard, RoleGuard],
-        data: { rolesExcluidos: ['CLIENTE'], permitirRepartidor: true },
-        loadChildren: () =>
-          import('./modules/deliveries/deliveries.module')
-            .then(m => m.DeliveriesModule)
       },
       {
         path: 'pos',
@@ -136,6 +122,14 @@ const routes: Routes = [
         loadChildren: () =>
           import('./modules/reservations/reservations.module')
             .then(m => m.ReservationsModule)
+      },
+      {
+        path: 'assistant-admin',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE', 'CAJERO', 'REPARTIDOR'] },
+        loadChildren: () =>
+          import('./modules/assistant-admin/assistant-admin.module')
+            .then(m => m.AssistantAdminModule)
       },
       {
         path: 'profile',
