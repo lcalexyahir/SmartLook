@@ -2,12 +2,17 @@
 //
 // CU21: "Mis pedidos" del cliente. Lista sus órdenes pagadas y, si son con
 // delivery, muestra la línea de tiempo del envío. Se actualiza cada 10 s.
+// NUEVO (devoluciones): botón "Solicitar devolución" en pedidos DELIVERY
+// ya ENTREGADA, badge "Devuelto"/"Entregado (devolución parcial)" usando
+// los campos devuelto/tiene_devolucion que ahora manda OrderSerializer.
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/theme/app_colors.dart';
+import 'devolucion_form_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -70,8 +75,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return i < 0 ? 0 : i;
   }
 
+  bool _devuelto(Map<String, dynamic> o) => o['devuelto'] == true;
+  bool _tieneDevolucion(Map<String, dynamic> o) => o['tiene_devolucion'] == true;
+
   String _textoEstado(Map<String, dynamic> o) {
     if (o['estado'] == 'CANCELADA') return 'Cancelado';
+    if (_devuelto(o)) return 'Devuelto';
+    if (_tieneDevolucion(o)) return 'Entregado (devolución parcial)';
     if (o['tipo_entrega'] == 'DELIVERY' && o['delivery'] != null) {
       return _textos[_indicePaso(o)];
     }
@@ -80,14 +90,44 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Color _colorEstado(Map<String, dynamic> o) {
     if (o['estado'] == 'CANCELADA') return const Color(0xFFC62828);
+    if (_devuelto(o)) return const Color(0xFF6A1B9A);
+    if (_tieneDevolucion(o)) return const Color(0xFFE65100);
     final entregado = o['estado'] == 'ENTREGADA' ||
         (o['delivery'] as Map?)?['estado'] == 'ENTREGADO';
     return entregado ? const Color(0xFF1B7F4B) : AppColors.primary;
   }
 
+  bool _puedeDevolver(Map<String, dynamic> o) {
+    return o['tipo_entrega'] == 'DELIVERY' && o['estado'] == 'ENTREGADA' && !_devuelto(o);
+  }
+
   String _fecha(dynamic iso) {
     final dt = DateTime.tryParse('$iso')?.toLocal();
     return dt == null ? '' : DateFormat('dd/MM/yyyy HH:mm').format(dt);
+  }
+
+  Future<void> _abrirDevolucion(Map<String, dynamic> pedido) async {
+    final mensajes = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(builder: (context) => DevolucionFormScreen(pedido: pedido)),
+    );
+    if (mensajes == null || !mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Devolución registrada'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [for (final m in mensajes) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(m))],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+        ],
+      ),
+    );
+    _cargar();
   }
 
   @override
@@ -196,6 +236,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ] else ...[
               const SizedBox(height: 8),
               Text('Retiro en sucursal: ${o['sucursal']}', style: const TextStyle(fontSize: 13)),
+            ],
+            if (_tieneDevolucion(o)) ...[
+              const SizedBox(height: 10),
+              const Text(
+                'Este pedido tiene una devolución registrada.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6A1B9A)),
+              ),
+            ],
+            if (_puedeDevolver(o)) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => _abrirDevolucion(o),
+                  child: const Text('Solicitar devolución'),
+                ),
+              ),
             ],
           ],
         ),

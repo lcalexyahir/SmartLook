@@ -1,0 +1,47 @@
+<!-- web/src/app/modules/devoluciones/pages/devoluciones-list/devoluciones-list.component.html -->
+<div class="devoluciones-container">
+  <div class="header">
+    <h2>Devoluciones</h2>
+    <select [(ngModel)]="sucursalSeleccionada" (ngModelChange)="onFiltroSucursal()" name="sucursal">
+      <option value="">Todas las sucursales</option>
+      <option *ngFor="let s of sucursales" [value]="s.id_sucursal">{{ s.nombre }}</option>
+    </select>
+  </div>
+
+  <div *ngIf="loading">Cargando devoluciones...</div>
+
+  <div class="table-container" *ngIf="!loading">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Orden</th>
+          <th>Cliente</th>
+          <th>Sucursal</th>
+          <th>Prendas devueltas</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of devoluciones">
+          <td>{{ d.fecha_creacion | date:'dd/MM/yyyy HH:mm':'-0400' }}</td>
+          <td>#{{ d.orden }}</td>
+          <td>{{ d.cliente }}</td>
+          <td>{{ d.sucursal }}</td>
+          <td>
+            <ul class="items-list">
+              <li *ngFor="let item of d.items">
+                {{ item.cantidad }} x {{ item.variante }}
+                <span class="motivo">({{ item.motivo_display }})</span>
+              </li>
+            </ul>
+          </td>
+          <td><span class="badge">{{ d.estado }}</span></td>
+        </tr>
+        <tr *ngIf="devoluciones.length === 0">
+          <td colspan="6">No hay devoluciones registradas todavía.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

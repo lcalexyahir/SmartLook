@@ -2,10 +2,9 @@
 //
 // MODIFICADO (CU16): se agrega la ruta 'pos'.
 // MODIFICADO (CU20): se agrega la ruta 'assistant-admin'.
-// MODIFICADO (CU21): se agregan las rutas 'orders' y 'deliveries', que
-// ya tenían su módulo y componente creados pero nunca se habían
-// registrado aquí (causaba que /orders y /deliveries cayeran en el
-// wildcard '**' y redirigieran a login, pareciendo un cierre de sesión).
+// FIX: 'orders' y 'deliveries' estaban en el menú lateral (layout.component.html)
+// pero nunca se habían registrado aquí - la ruta no existía.
+// NUEVO (devoluciones): se agrega la ruta 'devoluciones'.
 
 import { NgModule } from '@angular/core';
 import {
@@ -47,21 +46,6 @@ const routes: Routes = [
         loadChildren: () =>
           import('./modules/cart/cart.module')
             .then(m => m.CartModule)
-      },
-      {
-        path: 'orders',
-        canActivate: [AuthGuard],
-        loadChildren: () =>
-          import('./modules/orders/orders.module')
-            .then(m => m.OrdersModule)
-      },
-      {
-        path: 'deliveries',
-        canActivate: [AuthGuard, RoleGuard],
-        data: { rolesExcluidos: ['CLIENTE', 'CAJERO'], permitirRepartidor: true },
-        loadChildren: () =>
-          import('./modules/deliveries/deliveries.module')
-            .then(m => m.DeliveriesModule)
       },
       {
         path: 'pos',
@@ -141,6 +125,28 @@ const routes: Routes = [
         loadChildren: () =>
           import('./modules/reservations/reservations.module')
             .then(m => m.ReservationsModule)
+      },
+      {
+        path: 'orders',
+        canActivate: [AuthGuard],
+        loadChildren: () =>
+          import('./modules/orders/orders.module')
+            .then(m => m.OrdersModule)
+      },
+      {
+        path: 'deliveries',
+        canActivate: [AuthGuard],
+        loadChildren: () =>
+          import('./modules/deliveries/deliveries.module')
+            .then(m => m.DeliveriesModule)
+      },
+      {
+        path: 'devoluciones',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE', 'CAJERO', 'REPARTIDOR'] },
+        loadChildren: () =>
+          import('./modules/devoluciones/devoluciones.module')
+            .then(m => m.DevolucionesModule)
       },
       {
         path: 'assistant-admin',

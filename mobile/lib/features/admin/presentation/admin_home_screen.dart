@@ -19,6 +19,7 @@ import 'dashboard_home_screen.dart';
 import 'attribute_management_screen.dart';
 import 'product_management_screen.dart';
 import 'reservation_management_screen.dart';
+import 'devolucion_list_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -44,6 +45,9 @@ class AdminHomeScreen extends StatelessWidget {
       _SeccionAdmin('Bitácora', Icons.receipt_long_outlined, 'bitacora'),
       if (usuario != null && (usuario.hasRole('SUPER_ADMIN') || usuario.hasRole('ADMIN_EMPRESA') || usuario.hasRole('ENCARGADO_SUCURSAL')))
         _SeccionAdmin('Entregas', Icons.delivery_dining, 'entregas'),
+      // NUEVO (devoluciones): mismo restricción de rol que "Entregas".
+      if (usuario != null && (usuario.hasRole('SUPER_ADMIN') || usuario.hasRole('ADMIN_EMPRESA') || usuario.hasRole('ENCARGADO_SUCURSAL')))
+        _SeccionAdmin('Devoluciones', Icons.assignment_return_outlined, 'devoluciones'),
     ];
 
     final nombreRol = usuario != null && usuario.roles.isNotEmpty
@@ -207,6 +211,14 @@ class AdminHomeScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const DeliveriesScreen(),
+                          ),
+                        );
+                        break;
+                      case 'devoluciones':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const DevolucionListScreen(),
                           ),
                         );
                         break;

@@ -1,20 +1,20 @@
-// web/src/app/modules/orders/orders.module.ts
+// web/src/app/modules/devoluciones/devoluciones.module.ts
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { OrdersPageComponent } from './pages/orders-page/orders-page.component';
+import { DevolucionesListComponent } from './pages/devoluciones-list/devoluciones-list.component';
 
 @NgModule({
   declarations: [
-    OrdersPageComponent
+    DevolucionesListComponent
   ],
   imports: [
     CommonModule,
     FormsModule,
     RouterModule.forChild([
-      { path: '', component: OrdersPageComponent }
+      { path: '', component: DevolucionesListComponent }
     ])
   ]
 })
-export class OrdersModule { }
+export class DevolucionesModule { }
