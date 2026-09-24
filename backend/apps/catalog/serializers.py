@@ -1,3 +1,5 @@
+# backend/apps/catalog/serializers.py
+from django.db.models import Sum
 from rest_framework import serializers
 from .models import (
     Pais,
@@ -15,10 +17,12 @@ from .models import (
     ProductoProveedor,
 )
 
+
 class PaisSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pais
         fields = ["id_pais", "nombre", "estado"]
+
 
 class CiudadSerializer(serializers.ModelSerializer):
     pais = PaisSerializer(source="id_pais", read_only=True)
@@ -29,6 +33,7 @@ class CiudadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ciudad
         fields = ["id_ciudad", "pais", "id_pais", "nombre", "estado"]
+
 
 class SucursalSerializer(serializers.ModelSerializer):
     ciudad = CiudadSerializer(source="id_ciudad", read_only=True)
@@ -53,35 +58,42 @@ class SucursalSerializer(serializers.ModelSerializer):
             "longitud",
         ]
 
+
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
         fields = ["id_categoria", "nombre", "descripcion", "estado"]
+
 
 class MarcaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marca
         fields = ["id_marca", "nombre", "descripcion", "estado"]
 
+
 class TemporadaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Temporada
         fields = ["id_temporada", "nombre", "descripcion", "fecha_inicio", "fecha_fin", "estado"]
+
 
 class ColeccionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Coleccion
         fields = ["id_coleccion", "nombre", "descripcion", "anio", "estado"]
 
+
 class TallaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Talla
         fields = ["id_talla", "nombre", "descripcion", "estado"]
 
+
 class ColorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Color
         fields = ["id_color", "nombre", "codigo_hex", "estado"]
+
 
 class ProductoVarianteSerializer(serializers.ModelSerializer):
     talla = TallaSerializer(source="id_talla", read_only=True)
@@ -98,6 +110,13 @@ class ProductoVarianteSerializer(serializers.ModelSerializer):
     id_color = serializers.PrimaryKeyRelatedField(
         queryset=Color.objects.all(), write_only=True
     )
+    # NUEVO (fix stock legacy): "cantidad" ya NO es un número propio de
+    # la variante que un admin escribe a mano al crearla/editarla (eso
+    # es justo lo que se desincronizaba: quedaba pegado mientras el
+    # stock real, en StockItem por sucursal, sí se movía con reservas y
+    # ventas). Ahora se calcula en vivo sumando el stock real de todas
+    # las sucursales - de solo lectura, nunca puede quedar desfasado.
+    cantidad = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductoVariante
@@ -118,6 +137,14 @@ class ProductoVarianteSerializer(serializers.ModelSerializer):
 
     def get_nombre_completo(self, obj):
         return str(obj)
+
+    def get_cantidad(self, obj):
+        from apps.inventory.models import StockItem
+        total = StockItem.objects.filter(
+            id_variante=obj, estado=True
+        ).aggregate(total=Sum("cantidad"))["total"]
+        return total or 0
+
 
 class ProductoSerializer(serializers.ModelSerializer):
     categoria = CategoriaSerializer(source="id_categoria", read_only=True)
@@ -163,6 +190,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             "estado",
             "variantes",
         ]
+
 
 class ProveedorSerializer(serializers.ModelSerializer):
     class Meta:

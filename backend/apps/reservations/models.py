@@ -1,3 +1,4 @@
+# backend/apps/reservations/models.py
 from django.db import models
 from apps.users_auth.models import Usuario, Cliente
 from apps.catalog.models import Sucursal, ProductoVariante
@@ -46,6 +47,23 @@ class FittingReservationItem(models.Model):
         FittingReservation, on_delete=models.CASCADE, db_column="id_reserva", related_name="items"
     )
     id_variante = models.ForeignKey(ProductoVariante, on_delete=models.CASCADE, db_column="id_variante")
+    # NUEVO (vínculo reserva-venta): estado individual de la prenda dentro
+    # de la reserva. Antes solo existía el estado global de la reserva
+    # completa - ahora, si el cliente decide comprar solo algunas de las
+    # prendas que reservó, cada una se resuelve por separado:
+    #   PENDIENTE -> todavía no se compró ni se devolvió.
+    #   COMPRADO  -> se pagó (en caja o digital); su stock ya estaba
+    #                descontado desde que se creó la reserva.
+    #   DEVUELTO  -> el cliente no la compró; se repuso su stock.
+    estado = models.CharField(
+        max_length=20,
+        default="PENDIENTE",
+        choices=[
+            ("PENDIENTE", "Pendiente"),
+            ("COMPRADO", "Comprado"),
+            ("DEVUELTO", "Devuelto"),
+        ],
+    )
 
     class Meta:
         db_table = "fitting_reservation_item"

@@ -1,6 +1,11 @@
+# backend/apps/sales/serializers.py
+from django.db.models import Sum
 from rest_framework import serializers
 from apps.catalog.models import ProductoVariante
-from .models import Cart, CartItem, Delivery, Order, OrderItem, PosSale, PosSaleItem
+from .models import (
+    Cart, CartItem, Delivery, Order, OrderItem, PosSale, PosSaleItem,
+    Devolucion, DevolucionItem,
+)
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -12,6 +17,8 @@ class CartItemSerializer(serializers.ModelSerializer):
         source="id_variante.precio", max_digits=10, decimal_places=2, read_only=True
     )
     subtotal = serializers.SerializerMethodField()
+    reservado = serializers.SerializerMethodField()
+    id_reserva = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -22,11 +29,19 @@ class CartItemSerializer(serializers.ModelSerializer):
             "cantidad",
             "precio_unitario",
             "subtotal",
+            "reservado",
+            "id_reserva",
             "fecha_agregado",
         ]
 
     def get_subtotal(self, obj):
         return obj.id_variante.precio * obj.cantidad
+
+    def get_reservado(self, obj):
+        return obj.id_reserva_item_id is not None
+
+    def get_id_reserva(self, obj):
+        return obj.id_reserva_item.id_reserva_id if obj.id_reserva_item_id else None
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -49,7 +64,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ["id_item", "variante", "cantidad", "precio_unitario", "subtotal"]
 
 
-# NUEVO (CU21): datos del envío a domicilio de una orden.
 class DeliverySerializer(serializers.ModelSerializer):
     repartidor = serializers.SerializerMethodField()
 
@@ -80,6 +94,12 @@ class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(source="orderitem_set", many=True, read_only=True)
     sucursal = serializers.StringRelatedField(source="id_sucursal")
     delivery = serializers.SerializerMethodField()
+    # NUEVO (devoluciones): para que "Mis pedidos" sepa distinguir un
+    # pedido entregado normal de uno que ya se devolvió (total o parcial),
+    # sin depender de Order.estado (que se queda en ENTREGADA para
+    # siempre - es el historial real de la venta).
+    devuelto = serializers.SerializerMethodField()
+    tiene_devolucion = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -94,6 +114,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "tipo_entrega",
             "costo_envio",
             "delivery",
+            "devuelto",
+            "tiene_devolucion",
             "fecha_creacion",
         ]
 
@@ -101,14 +123,27 @@ class OrderSerializer(serializers.ModelSerializer):
         delivery = getattr(obj, "delivery", None)
         return DeliverySerializer(delivery).data if delivery else None
 
+    def get_tiene_devolucion(self, obj):
+        return obj.devoluciones.exists()
 
-# NUEVO (CU16)
+    def get_devuelto(self, obj):
+        total_comprado = obj.orderitem_set.aggregate(t=Sum("cantidad"))["t"] or 0
+        total_devuelto = DevolucionItem.objects.filter(
+            id_orden_item__id_orden=obj
+        ).aggregate(t=Sum("cantidad"))["t"] or 0
+        return total_comprado > 0 and total_devuelto >= total_comprado
+
+
 class PosSaleItemSerializer(serializers.ModelSerializer):
     variante = serializers.StringRelatedField(source="id_variante", read_only=True)
+    reservado = serializers.SerializerMethodField()
 
     class Meta:
         model = PosSaleItem
-        fields = ["id_item", "variante", "cantidad", "precio_unitario", "subtotal"]
+        fields = ["id_item", "variante", "cantidad", "precio_unitario", "subtotal", "reservado"]
+
+    def get_reservado(self, obj):
+        return obj.id_reserva_item_id is not None
 
 
 class PosSaleSerializer(serializers.ModelSerializer):
@@ -121,9 +156,6 @@ class PosSaleSerializer(serializers.ModelSerializer):
         fields = ["id_venta", "sucursal", "usuario", "items", "total", "metodo_pago", "fecha_venta"]
 
 
-
-
-# NUEVO (CU21): vista de una entrega para la bandeja del personal y el repartidor.
 class DeliveryEntregaSerializer(serializers.ModelSerializer):
     orden = serializers.IntegerField(source="id_orden_id", read_only=True)
     cliente = serializers.SerializerMethodField()
@@ -176,3 +208,28 @@ class DeliveryEntregaSerializer(serializers.ModelSerializer):
     def get_repartidor(self, obj):
         r = obj.id_repartidor
         return f"{r.nombres} {r.apellidos}" if r else None
+
+
+# NUEVO (devoluciones)
+class DevolucionItemSerializer(serializers.ModelSerializer):
+    variante = serializers.StringRelatedField(source="id_orden_item.id_variante", read_only=True)
+    motivo_display = serializers.CharField(source="get_motivo_display", read_only=True)
+
+    class Meta:
+        model = DevolucionItem
+        fields = ["id_item", "id_orden_item", "variante", "cantidad", "motivo", "motivo_display"]
+
+
+class DevolucionSerializer(serializers.ModelSerializer):
+    orden = serializers.IntegerField(source="id_orden_id", read_only=True)
+    cliente = serializers.SerializerMethodField()
+    sucursal = serializers.StringRelatedField(source="id_orden.id_sucursal", read_only=True)
+    items = DevolucionItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Devolucion
+        fields = ["id_devolucion", "orden", "cliente", "sucursal", "estado", "items", "fecha_creacion"]
+
+    def get_cliente(self, obj):
+        u = obj.id_cliente.id_usuario
+        return f"{u.nombres} {u.apellidos}"

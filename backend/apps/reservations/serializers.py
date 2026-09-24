@@ -1,3 +1,4 @@
+# backend/apps/reservations/serializers.py
 from rest_framework import serializers
 from apps.catalog.models import Sucursal, ProductoVariante
 from .models import FittingReservation, FittingReservationItem
@@ -11,7 +12,11 @@ class FittingReservationItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FittingReservationItem
-        fields = ["id_item", "variante", "id_variante"]
+        # NUEVO (vínculo reserva-venta): "estado" (PENDIENTE/COMPRADO/
+        # DEVUELTO) expuesto de solo lectura, para que web/mobile puedan
+        # mostrar qué pasó con cada prenda de la reserva.
+        fields = ["id_item", "variante", "id_variante", "estado"]
+        read_only_fields = ["estado"]
 
 
 class FittingReservationSerializer(serializers.ModelSerializer):

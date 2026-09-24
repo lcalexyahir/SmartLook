@@ -1,6 +1,8 @@
+# backend/apps/sales/models.py
 from django.db import models
 from apps.users_auth.models import Usuario, Cliente
 from apps.catalog.models import Sucursal, ProductoVariante
+from apps.reservations.models import FittingReservationItem
 
 
 class Cart(models.Model):
@@ -25,6 +27,15 @@ class CartItem(models.Model):
     id_carrito = models.ForeignKey(Cart, on_delete=models.CASCADE, db_column="id_carrito")
     id_variante = models.ForeignKey(ProductoVariante, on_delete=models.CASCADE, db_column="id_variante")
     cantidad = models.IntegerField(default=1)
+    id_reserva_item = models.ForeignKey(
+        FittingReservationItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        unique=True,
+        db_column="id_reserva_item",
+        related_name="cart_item",
+    )
     fecha_agregado = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -55,8 +66,6 @@ class Order(models.Model):
         choices=[("TARJETA", "Tarjeta"), ("QR", "QR")],
     )
     referencia_pago = models.CharField(max_length=100, null=True, blank=True)
-    # NUEVO (CU21): retiro en sucursal o delivery a domicilio. "total" incluye
-    # el costo de envío cuando tipo_entrega = DELIVERY.
     tipo_entrega = models.CharField(
         max_length=20,
         default="RETIRO",
@@ -71,7 +80,6 @@ class Order(models.Model):
         verbose_name_plural = "Órdenes"
 
 
-# NUEVO (CU21): datos y seguimiento del envío de una orden con delivery.
 class Delivery(models.Model):
     id_delivery = models.AutoField(primary_key=True)
     id_orden = models.OneToOneField(
@@ -150,8 +158,6 @@ class PosSale(models.Model):
         verbose_name_plural = "Ventas POS"
 
 
-# NUEVO (CU16): PosSale no tenía tabla de items — solo un total suelto,
-# sin registro de qué prendas se vendieron. Mismo patrón que OrderItem.
 class PosSaleItem(models.Model):
     id_item = models.AutoField(primary_key=True)
     id_venta = models.ForeignKey(PosSale, on_delete=models.CASCADE, db_column="id_venta", related_name="items")
@@ -159,8 +165,67 @@ class PosSaleItem(models.Model):
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    id_reserva_item = models.ForeignKey(
+        FittingReservationItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        unique=True,
+        db_column="id_reserva_item",
+        related_name="pos_sale_item",
+    )
 
     class Meta:
         db_table = "pos_sale_item"
         verbose_name = "Item de Venta POS"
         verbose_name_plural = "Items de Venta POS"
+
+
+# NUEVO (devoluciones): el cliente devuelve prendas de un pedido con
+# delivery ya entregado (ej. la sucursal se equivocó de talla/color). Se
+# resuelve sola al pedirla, sin pasar por aprobación de un encargado, y
+# repone el stock en la sucursal que despachó la orden. Mismo patrón
+# cabecera/detalle que Order/OrderItem.
+class Devolucion(models.Model):
+    id_devolucion = models.AutoField(primary_key=True)
+    id_orden = models.ForeignKey(
+        Order, on_delete=models.CASCADE, db_column="id_orden", related_name="devoluciones"
+    )
+    id_cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, db_column="id_cliente")
+    estado = models.CharField(
+        max_length=20,
+        default="COMPLETADA",
+        choices=[("COMPLETADA", "Completada")],
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "devolucion"
+        verbose_name = "Devolución"
+        verbose_name_plural = "Devoluciones"
+
+    def __str__(self):
+        return f"Devolución {self.id_devolucion} - Orden {self.id_orden_id}"
+
+
+class DevolucionItem(models.Model):
+    id_item = models.AutoField(primary_key=True)
+    id_devolucion = models.ForeignKey(
+        Devolucion, on_delete=models.CASCADE, db_column="id_devolucion", related_name="items"
+    )
+    id_orden_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, db_column="id_orden_item")
+    cantidad = models.IntegerField()
+    motivo = models.CharField(
+        max_length=30,
+        choices=[
+            ("TALLA_INCORRECTA", "Talla incorrecta"),
+            ("COLOR_INCORRECTO", "Color incorrecto"),
+            ("PRODUCTO_DANADO", "Producto dañado/defectuoso"),
+            ("OTRO", "Otro"),
+        ],
+    )
+
+    class Meta:
+        db_table = "devolucion_item"
+        verbose_name = "Item de Devolución"
+        verbose_name_plural = "Items de Devolución"

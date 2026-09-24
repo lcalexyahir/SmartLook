@@ -1,3 +1,4 @@
+# backend/apps/sales/views.py
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
@@ -7,16 +8,19 @@ from common.permissions import IsCajero, IsCliente, IsEncargadoSucursal, IsRepar
 from common.utils import log_audit
 from apps.users_auth.models import Cliente, Usuario
 from apps.catalog.models import Sucursal
-from .models import Cart, CartItem, Delivery, Order, OrderItem, PosSale
+from .models import Cart, CartItem, Delivery, Order, OrderItem, PosSale, Devolucion
 from .serializers import (
     CartSerializer,
     CartItemSerializer,
     OrderSerializer,
     PosSaleSerializer,
     DeliveryEntregaSerializer,
+    DevolucionSerializer,
 )
-from .services import CheckoutService, PosSaleService
+from .services import CheckoutService, PosSaleService, DevolucionService
 from .integrations.envio import cotizar, EnvioError
+from rest_framework.permissions import IsAuthenticated
+
 
 class CartViewSet(ReadOnlyModelViewSet):
     serializer_class = CartSerializer
@@ -79,13 +83,8 @@ class CartViewSet(ReadOnlyModelViewSet):
 
         return Response(OrderSerializer(order).data, status=200)
 
-
     @action(detail=False, methods=["post"], url_path="cotizar-envio")
     def cotizar_envio(self, request):
-        """
-        CU21 - Cotiza el envío a domicilio del carrito actual.
-        Body: {"id_sucursal": <int>, "latitud": <float>, "longitud": <float>}
-        """
         cliente = Cliente.objects.get(id_usuario=request.user)
         sucursal_id = request.data.get("id_sucursal")
         latitud = request.data.get("latitud")
@@ -124,6 +123,7 @@ class CartViewSet(ReadOnlyModelViewSet):
             "fuente_distancia": cotizacion["fuente_distancia"],
         })
 
+
 class CartItemViewSet(ModelViewSet):
     serializer_class = CartItemSerializer
     permission_classes = [IsCliente]
@@ -137,13 +137,29 @@ class CartItemViewSet(ModelViewSet):
         cart, _ = Cart.objects.get_or_create(id_cliente=cliente, estado="ACTIVO")
         variante = serializer.validated_data["id_variante"]
         cantidad_nueva = serializer.validated_data.get("cantidad", 1)
-        existente = CartItem.objects.filter(id_carrito=cart, id_variante=variante).first()
+        existente = CartItem.objects.filter(
+            id_carrito=cart, id_variante=variante, id_reserva_item__isnull=True
+        ).first()
         if existente:
             existente.cantidad += cantidad_nueva
             existente.save()
             serializer.instance = existente
         else:
             serializer.save(id_carrito=cart)
+
+    def perform_destroy(self, instance):
+        if instance.id_reserva_item_id:
+            from apps.reservations.services import ReservationStockService
+            ReservationStockService.liberar_item(
+                instance.id_reserva_item,
+                usuario=self.request.user,
+                motivo=(
+                    f"Reserva #{instance.id_reserva_item.id_reserva_id}: "
+                    f"el cliente quitó la prenda del carrito antes de pagar"
+                ),
+            )
+        instance.delete()
+
 
 class OrderViewSet(ReadOnlyModelViewSet):
     serializer_class = OrderSerializer
@@ -153,25 +169,14 @@ class OrderViewSet(ReadOnlyModelViewSet):
         cliente = Cliente.objects.get(id_usuario=self.request.user)
         return Order.objects.filter(id_cliente=cliente).order_by("-fecha_creacion")
 
+
 class PosSaleViewSet(ReadOnlyModelViewSet):
-    """
-    CU16 - Solo lectura por el router estándar; el registro real de la
-    venta pasa por la acción 'registrar' (necesita validar stock y
-    crear los items, no un simple create() de DRF).
-    """
     queryset = PosSale.objects.all().order_by("-fecha_venta")
     serializer_class = PosSaleSerializer
     permission_classes = [IsCajero]
 
     @action(detail=False, methods=["post"])
     def registrar(self, request):
-        """
-        Body: {
-          "id_sucursal": <int>,
-          "metodo_pago": "EFECTIVO" | "TARJETA" | "QR",
-          "items": [{"id_variante": <int>, "cantidad": <int>}, ...]
-        }
-        """
         sucursal_id = request.data.get("id_sucursal")
         metodo_pago = request.data.get("metodo_pago")
         items = request.data.get("items", [])
@@ -194,18 +199,10 @@ class PosSaleViewSet(ReadOnlyModelViewSet):
         return Response(PosSaleSerializer(venta).data, status=201)
 
 
-
-
 ROLES_GESTION = ["SUPER_ADMIN", "ADMIN_EMPRESA", "ENCARGADO_SUCURSAL"]
 
 
 class DeliveryViewSet(ReadOnlyModelViewSet):
-    """
-    CU21 - Bandeja de entregas.
-    - Encargado/admin: ven todas las entregas de órdenes ya pagadas.
-    - Repartidor: solo las que tiene asignadas.
-    Filtro opcional: ?estado=PENDIENTE|EN_PREPARACION|EN_CAMINO|ENTREGADO
-    """
     serializer_class = DeliveryEntregaSerializer
 
     def get_permissions(self):
@@ -320,3 +317,68 @@ class DeliveryViewSet(ReadOnlyModelViewSet):
             Order.objects.filter(pk=d.id_orden_id).update(estado="ENTREGADA")
         self._auditar(request, "ENTREGA_COMPLETADA", d, "marcó entregado el pedido")
         return Response(self.get_serializer(self.get_object()).data)
+
+
+# NUEVO (devoluciones)
+# NUEVO (devoluciones)
+class DevolucionViewSet(ReadOnlyModelViewSet):
+    """
+    Devoluciones de pedidos con delivery ya entregados. Solo lectura por
+    el router estándar (el cliente ve las suyas, el personal ve todas,
+    filtrable por sucursal - así queda visible en administración); la
+    solicitud real pasa por la acción 'solicitar', que valida la orden,
+    repone stock y crea Devolucion + DevolucionItem.
+    """
+    serializer_class = DevolucionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action == "solicitar":
+            return [IsCliente()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        queryset = Devolucion.objects.all().order_by("-fecha_creacion")
+        usuario = self.request.user
+        es_personal = usuario.roles.filter(
+            nombre__in=["SUPER_ADMIN", "ADMIN_EMPRESA", "ENCARGADO_SUCURSAL"]
+        ).exists()
+        if es_personal:
+            sucursal = self.request.query_params.get("sucursal")
+            if sucursal:
+                queryset = queryset.filter(id_orden__id_sucursal_id=sucursal)
+            return queryset
+        try:
+            cliente = Cliente.objects.get(id_usuario=usuario)
+        except Cliente.DoesNotExist:
+            return queryset.none()
+        return queryset.filter(id_cliente=cliente)
+
+    @action(detail=False, methods=["post"], permission_classes=[IsCliente])
+    def solicitar(self, request):
+        """
+        Body: {
+          "id_orden": <int>,
+          "items": [{"id_orden_item": <int>, "cantidad": <int>, "motivo": "TALLA_INCORRECTA"}]
+        }
+        """
+        cliente = Cliente.objects.get(id_usuario=request.user)
+        id_orden = request.data.get("id_orden")
+        items = request.data.get("items", [])
+
+        if not id_orden:
+            return Response({"error": "Debe indicar la orden."}, status=400)
+        try:
+            orden = Order.objects.get(pk=id_orden)
+        except Order.DoesNotExist:
+            return Response({"error": "Orden no encontrada."}, status=400)
+
+        try:
+            devolucion, mensajes = DevolucionService.solicitar_devolucion(cliente, orden, items)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        return Response({
+            "devolucion": DevolucionSerializer(devolucion).data,
+            "mensajes": mensajes,
+        }, status=201)
