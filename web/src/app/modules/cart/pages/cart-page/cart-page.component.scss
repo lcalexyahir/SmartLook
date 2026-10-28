@@ -2,41 +2,34 @@
   padding: 2rem;
   max-width: 800px;
   margin: 0 auto;
-
   h2 {
     color: #1a1a2e;
     margin-bottom: 1.5rem;
   }
 }
-
 .empty-state {
   text-align: center;
   padding: 3rem;
   color: #999;
-
   .btn {
     margin-top: 1rem;
     display: inline-block;
   }
 }
-
 .success-state {
   text-align: center;
   padding: 3rem;
   background: #e8f8f0;
   border-radius: 8px;
   color: #1a1a2e;
-
   p {
     margin-bottom: 0.5rem;
   }
-
   .btn {
     margin-top: 1rem;
     display: inline-block;
   }
 }
-
 .cart-item {
   display: flex;
   align-items: center;
@@ -46,28 +39,23 @@
   padding: 1rem;
   margin-bottom: 0.75rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-
   .item-info {
     flex: 1;
     display: flex;
     flex-direction: column;
-
     .item-name {
       font-weight: 600;
       color: #1a1a2e;
     }
-
     .item-price {
       font-size: 0.85rem;
       color: #999;
     }
   }
-
   .item-qty {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-
     button {
       width: 28px;
       height: 28px;
@@ -77,27 +65,23 @@
       cursor: pointer;
     }
   }
-
   .item-subtotal {
     font-weight: 600;
     color: #0f3460;
     min-width: 80px;
     text-align: right;
   }
-
   .btn-link {
     background: none;
     border: none;
     cursor: pointer;
     font-size: 0.85rem;
     color: #0f3460;
-
     &.btn-danger {
       color: #f44336;
     }
   }
 }
-
 .cart-summary {
   display: flex;
   justify-content: space-between;
@@ -107,22 +91,18 @@
   font-weight: 700;
   border-top: 2px solid #e0e0e0;
   margin-top: 1rem;
-
   .total-value {
     color: #0f3460;
   }
 }
-
 .form-group {
   margin: 1rem 0;
-
   label {
     display: block;
     margin-bottom: 0.4rem;
     font-weight: 600;
     color: #1a1a2e;
   }
-
   select {
     width: 100%;
     padding: 0.6rem;
@@ -130,23 +110,19 @@
     border-radius: 6px;
   }
 }
-
 .error-message {
   color: #f44336;
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
 }
-
 .payment-form {
   margin-top: 1rem;
-
   label {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
     color: #1a1a2e;
   }
-
   .card-element {
     padding: 12px;
     border: 1px solid #e0e0e0;
@@ -154,15 +130,12 @@
     background: white;
     margin-bottom: 0.5rem;
   }
-
   .card-hint {
     font-size: 0.8rem;
     color: #999;
     margin-bottom: 1rem;
   }
 }
-
-
 // CU21: entrega
 .form-group input {
   width: 100%;
@@ -171,12 +144,10 @@
   border-radius: 6px;
   box-sizing: border-box;
 }
-
 .delivery-options {
   display: flex;
   gap: 1rem;
   margin: 1rem 0;
-
   label {
     flex: 1;
     display: flex;
@@ -189,18 +160,15 @@
     cursor: pointer;
     font-weight: 600;
     color: #1a1a2e;
-
     input {
       margin: 0;
     }
-
     &.selected {
       border-color: #0f3460;
       background: #eef3fb;
     }
   }
 }
-
 .delivery-box {
   background: white;
   border-radius: 8px;
@@ -208,7 +176,6 @@
   margin-bottom: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
-
 .btn-location {
   padding: 0.6rem 1rem;
   border: 1px solid #0f3460;
@@ -217,36 +184,59 @@
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-
   &:disabled {
     opacity: 0.6;
     cursor: default;
   }
 }
-
 .location-status {
   font-size: 0.85rem;
   color: #555;
   margin: 0.5rem 0 0;
 }
-
 .quote-box {
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
   background: #eef3fb;
   border-radius: 6px;
   color: #1a1a2e;
-
   .quote-source {
     font-size: 0.8rem;
     color: #777;
   }
 }
-
 .cart-summary--envio {
   border-top: none;
   margin-top: 0;
   padding: 0.25rem 0;
   font-size: 1rem;
   font-weight: 600;
+}
+// SaaS: pestañas de tiendas (un carrito por tienda)
+.store-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  .store-tab {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 999px;
+    background: white;
+    color: #1a1a2e;
+    font-weight: 600;
+    cursor: pointer;
+    &.active {
+      border-color: #0f3460;
+      background: #0f3460;
+      color: white;
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+}
+.success-state .btn-primary {
+  margin-left: 0.5rem;
 }

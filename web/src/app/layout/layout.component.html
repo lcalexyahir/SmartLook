@@ -10,6 +10,25 @@
           </svg>
           <span>Dashboard</span>
         </a>
+        <!-- NUEVO (SaaS): empresas (SUPER_ADMIN) o la propia empresa (ADMIN_EMPRESA) -->
+        <a routerLink="/empresas" class="nav-link" *ngIf="puedeVerEmpresas">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 21V5l8-2v18"/>
+            <path d="M12 9h8v12"/>
+            <path d="M7 8h2M7 12h2M7 16h2M15 13h2M15 17h2"/>
+            <path d="M2 21h20"/>
+          </svg>
+          <span>{{ esSuperAdmin ? 'Empresas' : 'Mi empresa' }}</span>
+        </a>
+        <!-- NUEVO (SaaS - A.3): plan y suscripción de la empresa (ADMIN_EMPRESA) -->
+        <a routerLink="/empresas/plan" class="nav-link" *ngIf="esAdminEmpresa">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <path d="M3 10h18"/>
+            <path d="M7 15h3"/>
+          </svg>
+          <span>Mi plan</span>
+        </a>
         <a routerLink="/catalog" class="nav-link" *ngIf="!esSoloRepartidor">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 3v3"/>
@@ -72,7 +91,7 @@
           </svg>
           <span>Devoluciones</span>
         </a>
-        <a routerLink="/assistant-admin" class="nav-link" *ngIf="puedeVerAsistente">
+        <a routerLink="/assistant-admin" class="nav-link" *ngIf="puedeVerAsistente && planIncluyeIA">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 4h16v11H8l-4 4z"/>
             <circle cx="9" cy="9.5" r="1"/>
@@ -161,6 +180,17 @@
         <div class="navbar-title">SmartLook</div>
       </div>
       <div class="user">
+        <!-- NUEVO (SaaS - A.2): empresa del personal (y su sucursal, si tiene) -->
+        <span class="empresa-chip" *ngIf="empresa"
+              [title]="sucursal ? empresa.nombre + ' - ' + sucursal : empresa.nombre">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 21V5l8-2v18"/>
+            <path d="M12 9h8v12"/>
+            <path d="M2 21h20"/>
+          </svg>
+          <span class="empresa-nombre">{{ empresa.nombre }}</span>
+          <span class="empresa-sucursal" *ngIf="sucursal">· {{ sucursal }}</span>
+        </span>
         <span *ngIf="usuario" class="user-info">
           {{ usuario.nombres }}
           {{ usuario.apellidos }}
@@ -170,6 +200,28 @@
         <button (click)="cerrarSesion()">Cerrar sesión</button>
       </div>
     </header>
+    <!-- NUEVO (SaaS - A.5/A.6): estado de la conexión -->
+    <div class="aviso-plan aviso-plan--offline" *ngIf="copiaLocal" role="status">
+      <span class="aviso-texto">
+        {{ enLinea ? 'Estás viendo' : 'Sin conexión: estás viendo' }} información guardada en este dispositivo
+        el {{ copiaLocal | date:'dd/MM/yyyy HH:mm' }}. Precios y disponibilidad pueden estar desactualizados.
+      </span>
+    </div>
+    <div class="aviso-plan aviso-plan--offline" *ngIf="!copiaLocal && !enLinea" role="status">
+      <span class="aviso-texto">
+        Sin conexión: puedes consultar lo que ya se descargó y registrar ventas o reservas; se enviarán al recuperar internet.
+      </span>
+    </div>
+    <!-- NUEVO (SaaS - A.3): avisos del plan y de la suscripción -->
+    <div class="aviso-plan aviso-plan--error" *ngIf="aviso" role="alert">
+      <span class="aviso-texto">{{ aviso.mensaje }}</span>
+      <a *ngIf="esAdminEmpresa" routerLink="/empresas/plan" (click)="cerrarAviso()">Ver mi plan</a>
+      <button type="button" class="aviso-cerrar" (click)="cerrarAviso()" aria-label="Cerrar aviso">&times;</button>
+    </div>
+    <div class="aviso-plan" *ngIf="!aviso && avisoSuscripcion" [class.aviso-plan--error]="suscripcionVencida" role="status">
+      <span class="aviso-texto">{{ avisoSuscripcion }}</span>
+      <a *ngIf="esAdminEmpresa" routerLink="/empresas/plan">Renovar plan</a>
+    </div>
     <main>
       <router-outlet></router-outlet>
     </main>

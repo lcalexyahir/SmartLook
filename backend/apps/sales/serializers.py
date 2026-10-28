@@ -4,7 +4,7 @@ from rest_framework import serializers
 from apps.catalog.models import ProductoVariante
 from .models import (
     Cart, CartItem, Delivery, Order, OrderItem, PosSale, PosSaleItem,
-    Devolucion, DevolucionItem,
+    Devolucion, DevolucionItem, SyncOperacion,
 )
 
 
@@ -35,24 +35,34 @@ class CartItemSerializer(serializers.ModelSerializer):
         ]
 
     def get_subtotal(self, obj):
+        """Subtotal de la línea del carrito."""
         return obj.id_variante.precio * obj.cantidad
 
     def get_reservado(self, obj):
+        """True si la prenda viene de una reserva."""
         return obj.id_reserva_item_id is not None
 
     def get_id_reserva(self, obj):
+        """Id de la reserva de origen, si la hay."""
         return obj.id_reserva_item.id_reserva_id if obj.id_reserva_item_id else None
 
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(source="cartitem_set", many=True, read_only=True)
     total = serializers.SerializerMethodField()
+    # NUEVO (SaaS): tienda (empresa) del carrito; el cliente tiene uno por empresa.
+    id_empresa = serializers.IntegerField(source="id_empresa_id", read_only=True)
+    empresa_nombre = serializers.CharField(source="id_empresa.nombre", read_only=True)
 
     class Meta:
         model = Cart
-        fields = ["id_carrito", "items", "estado", "total", "fecha_actualizacion"]
+        fields = [
+            "id_carrito", "id_empresa", "empresa_nombre", "items", "estado", "total",
+            "fecha_actualizacion",
+        ]
 
     def get_total(self, obj):
+        """Total del carrito (precio actual por cantidad)."""
         return sum(item.id_variante.precio * item.cantidad for item in obj.cartitem_set.all())
 
 
@@ -86,6 +96,7 @@ class DeliverySerializer(serializers.ModelSerializer):
         ]
 
     def get_repartidor(self, obj):
+        """Nombre del repartidor asignado."""
         r = obj.id_repartidor
         return f"{r.nombres} {r.apellidos}" if r else None
 
@@ -100,11 +111,16 @@ class OrderSerializer(serializers.ModelSerializer):
     # siempre - es el historial real de la venta).
     devuelto = serializers.SerializerMethodField()
     tiene_devolucion = serializers.SerializerMethodField()
+    # NUEVO (SaaS): tienda (empresa) donde se hizo el pedido.
+    id_empresa = serializers.IntegerField(source="id_empresa_id", read_only=True)
+    empresa_nombre = serializers.CharField(source="id_empresa.nombre", read_only=True)
 
     class Meta:
         model = Order
         fields = [
             "id_orden",
+            "id_empresa",
+            "empresa_nombre",
             "items",
             "total",
             "estado",
@@ -120,13 +136,16 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
 
     def get_delivery(self, obj):
+        """Datos del delivery de la orden, si tiene."""
         delivery = getattr(obj, "delivery", None)
         return DeliverySerializer(delivery).data if delivery else None
 
     def get_tiene_devolucion(self, obj):
+        """True si la orden tiene alguna devolución."""
         return obj.devoluciones.exists()
 
     def get_devuelto(self, obj):
+        """True si se devolvieron todas las prendas de la orden."""
         total_comprado = obj.orderitem_set.aggregate(t=Sum("cantidad"))["t"] or 0
         total_devuelto = DevolucionItem.objects.filter(
             id_orden_item__id_orden=obj
@@ -143,6 +162,7 @@ class PosSaleItemSerializer(serializers.ModelSerializer):
         fields = ["id_item", "variante", "cantidad", "precio_unitario", "subtotal", "reservado"]
 
     def get_reservado(self, obj):
+        """True si la prenda viene de una reserva."""
         return obj.id_reserva_item_id is not None
 
 
@@ -196,16 +216,20 @@ class DeliveryEntregaSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_cliente(self, obj):
+        """Nombre del cliente."""
         u = obj.id_orden.id_cliente.id_usuario
         return f"{u.nombres} {u.apellidos}"
 
     def get_telefono_cliente(self, obj):
+        """Teléfono del cliente."""
         return obj.id_orden.id_cliente.id_usuario.telefono
 
     def get_prendas(self, obj):
+        """Cantidad total de prendas de la orden."""
         return sum(item.cantidad for item in obj.id_orden.orderitem_set.all())
 
     def get_repartidor(self, obj):
+        """Nombre del repartidor asignado."""
         r = obj.id_repartidor
         return f"{r.nombres} {r.apellidos}" if r else None
 
@@ -231,5 +255,29 @@ class DevolucionSerializer(serializers.ModelSerializer):
         fields = ["id_devolucion", "orden", "cliente", "sucursal", "estado", "items", "fecha_creacion"]
 
     def get_cliente(self, obj):
+        """Nombre del cliente."""
         u = obj.id_cliente.id_usuario
         return f"{u.nombres} {u.apellidos}"
+
+
+# NUEVO (SaaS - paso 6): historial de operaciones sincronizadas sin conexión.
+class SyncOperacionSerializer(serializers.ModelSerializer):
+    usuario = serializers.StringRelatedField(source="id_usuario", read_only=True)
+    id_venta = serializers.IntegerField(source="id_venta_id", read_only=True)
+
+    class Meta:
+        model = SyncOperacion
+        fields = [
+            "id_operacion",
+            "uuid",
+            "tipo",
+            "estado",
+            "mensaje",
+            "id_venta",
+            "usuario",
+            "datos",
+            "fecha_operacion",
+            "fecha_recepcion",
+            "reintentos",
+        ]
+        read_only_fields = fields

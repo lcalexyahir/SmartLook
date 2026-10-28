@@ -40,11 +40,17 @@ class SucursalSerializer(serializers.ModelSerializer):
     id_ciudad = serializers.PrimaryKeyRelatedField(
         queryset=Ciudad.objects.all(), write_only=True
     )
+    # NUEVO (SaaS): empresa dueña de la sucursal. Solo lectura: la asigna
+    # el backend con la empresa del usuario, nunca la envía el cliente.
+    id_empresa = serializers.IntegerField(source="id_empresa_id", read_only=True)
+    empresa_nombre = serializers.CharField(source="id_empresa.nombre", read_only=True)
 
     class Meta:
         model = Sucursal
         fields = [
             "id_sucursal",
+            "id_empresa",
+            "empresa_nombre",
             "ciudad",
             "id_ciudad",
             "nombre",
@@ -136,9 +142,11 @@ class ProductoVarianteSerializer(serializers.ModelSerializer):
         ]
 
     def get_nombre_completo(self, obj):
+        """Nombre legible de la variante (producto - talla - color)."""
         return str(obj)
 
     def get_cantidad(self, obj):
+        """Stock real sumado de todas las sucursales (de la empresa del producto)."""
         from apps.inventory.models import StockItem
         total = StockItem.objects.filter(
             id_variante=obj, estado=True
@@ -168,11 +176,17 @@ class ProductoSerializer(serializers.ModelSerializer):
     id_coleccion = serializers.PrimaryKeyRelatedField(
         queryset=Coleccion.objects.all(), write_only=True, required=False, allow_null=True
     )
+    # NUEVO (SaaS): tienda (empresa) del producto, para mostrarla en el
+    # catálogo unificado. Solo lectura: la asigna el backend.
+    id_empresa = serializers.IntegerField(source="id_empresa_id", read_only=True)
+    empresa_nombre = serializers.CharField(source="id_empresa.nombre", read_only=True)
 
     class Meta:
         model = Producto
         fields = [
             "id_producto",
+            "id_empresa",
+            "empresa_nombre",
             "categoria",
             "id_categoria",
             "marca",

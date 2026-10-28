@@ -3,15 +3,54 @@
     <h2>{{ esEncargado ? 'Reservas' : 'Mis Reservas' }}</h2>
     <a *ngIf="!esEncargado" routerLink="/reservations/nueva" class="btn btn-accent">+ Nueva Reserva</a>
   </div>
-
   <div class="alert alert-error" *ngIf="actionError">{{ actionError }}</div>
-
+  <!-- NUEVO (A.5): reservas guardadas en este dispositivo y su estado -->
+  <section class="cola" *ngIf="!esEncargado && (reservasLocales.length > 0 || resultadoSync)">
+    <div class="cola-head">
+      <h3>Reservas sin conexión</h3>
+      <div class="cola-acciones">
+        <button type="button" class="btn btn-secondary" *ngIf="confirmadas > 0" (click)="limpiarConfirmadas()">
+          Quitar confirmadas
+        </button>
+        <button type="button" class="btn btn-secondary" [disabled]="!enLinea || sincronizando || pendientes === 0"
+                (click)="sincronizarAhora()">
+          {{ sincronizando ? 'Sincronizando...' : 'Sincronizar ahora' }}
+        </button>
+      </div>
+    </div>
+    <p class="cola-resumen">
+      {{ pendientes }} por enviar · {{ confirmadas }} confirmada(s)<span *ngIf="rechazadas > 0"> · {{ rechazadas }} rechazada(s)</span>
+    </p>
+    <div class="sync-resultado" *ngIf="resultadoSync as r" [class.sync-resultado--error]="!!r.error">
+      <ng-container *ngIf="!r.error">
+        Última sincronización ({{ r.fecha | date:'dd/MM HH:mm' }}): {{ r.sincronizadas }} registrada(s),
+        {{ r.duplicadas }} ya registrada(s) antes, {{ r.rechazadas }} rechazada(s).
+      </ng-container>
+      <ng-container *ngIf="r.error">{{ r.error }}</ng-container>
+    </div>
+    <div class="cola-item" *ngFor="let r of reservasLocales">
+      <div class="cola-info">
+        <strong>{{ r.sucursal || 'Sucursal' }}</strong>
+        <span>Para el {{ r.fecha_reserva }} a las {{ r.hora_reserva }} · {{ r.items.length }} prenda(s)</span>
+        <span class="prendas">{{ prendas(r) }}</span>
+        <span>Registrada el {{ r.fecha_operacion | date:'dd/MM/yyyy HH:mm' }}</span>
+        <span class="codigo">Código: {{ r.uuid }}</span>
+        <span *ngIf="r.estado === 'CONFIRMADA' && r.fecha_confirmacion">
+          Confirmada el {{ r.fecha_confirmacion | date:'dd/MM/yyyy HH:mm' }}<ng-container *ngIf="r.mensaje"> · {{ r.mensaje }}</ng-container>
+        </span>
+        <span class="motivo" *ngIf="r.estado === 'RECHAZADA'">Motivo: {{ r.mensaje }}</span>
+      </div>
+      <span class="estado" [ngClass]="'estado--' + r.estado.toLowerCase()">{{ textoEstado(r) }}</span>
+      <button type="button" class="btn-link btn-danger" *ngIf="r.estado === 'RECHAZADA'" (click)="descartar(r)">Descartar</button>
+    </div>
+  </section>
   <div *ngIf="loading">Cargando reservas...</div>
-
-  <div *ngIf="!loading && reservas.length === 0" class="empty-state">
+  <div *ngIf="!loading && sinDatosGuardados" class="empty-state">
+    <p>Sin conexión y sin reservas guardadas en este dispositivo. Se mostrarán al recuperar internet.</p>
+  </div>
+  <div *ngIf="!loading && !sinDatosGuardados && reservas.length === 0" class="empty-state">
     <p>{{ esEncargado ? 'No hay reservas registradas.' : 'Todavía no tienes reservas.' }}</p>
   </div>
-
   <div class="reserva-card" *ngFor="let reserva of reservas">
     <div class="reserva-header">
       <div>

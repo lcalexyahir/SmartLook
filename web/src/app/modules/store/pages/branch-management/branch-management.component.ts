@@ -3,12 +3,15 @@
 // Archivo YA EXISTENTE. Se agrega edición y eliminación (antes
 // onSubmit() solo llamaba a createBranch(), nunca a updateBranch()
 // aunque el servicio ya lo tenía).
-
+// MODIFICADO (SaaS): el SUPER_ADMIN ve la columna Empresa y, al registrar una
+// sucursal, elige la empresa (el backend la exige con "id_empresa"). El
+// personal de una empresa sigue igual: sus sucursales se crean en su empresa.
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BranchService } from '../../services/branch.service';
-import { Country, City, Branch } from '../../../../core/models/branch.interface';
-
+import { Country, City } from '../../../../core/models/branch.interface';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { EmpresaService, mensajeDeError } from '../../../empresas/services/empresa.service';
 @Component({
   selector: 'app-branch-management',
   templateUrl: './branch-management.component.html',
@@ -17,23 +20,26 @@ import { Country, City, Branch } from '../../../../core/models/branch.interface'
 export class BranchManagementComponent implements OnInit {
   countries: Country[] = [];
   cities: City[] = [];
-  branches: Branch[] = [];
+  // any: la lista trae además id_empresa y empresa_nombre (SaaS).
+  branches: any[] = [];
+  empresas: any[] = [];
+  esSuperAdmin = false;
   branchForm!: FormGroup;
   loading = false;
   showForm = false;
   editandoId: number | null = null;
   errorMessage: string | null = null;
-
   constructor(
     private branchService: BranchService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private empresaService: EmpresaService
   ) {}
-
   ngOnInit(): void {
+    this.esSuperAdmin = this.authService.obtenerRoles().includes('SUPER_ADMIN');
     this.initForm();
     this.loadData();
   }
-
   initForm(): void {
     this.branchForm = this.fb.group({
       id_ciudad: ['', Validators.required],
@@ -42,8 +48,10 @@ export class BranchManagementComponent implements OnInit {
       telefono: [''],
       fecha_apertura: ['']
     });
+    if (this.esSuperAdmin) {
+      this.branchForm.addControl('id_empresa', this.fb.control('', Validators.required));
+    }
   }
-
   loadData(): void {
     this.loading = true;
     this.branchService.getCountries().subscribe({
@@ -54,6 +62,12 @@ export class BranchManagementComponent implements OnInit {
       next: (data: any) => this.cities = data.results || data,
       error: () => this.cities = []
     });
+    if (this.esSuperAdmin) {
+      this.empresaService.listar().subscribe({
+        next: (data: any) => this.empresas = data.results || data,
+        error: () => this.empresas = []
+      });
+    }
     this.branchService.getBranches().subscribe({
       next: (data: any) => {
         this.branches = data.results || data;
@@ -65,14 +79,13 @@ export class BranchManagementComponent implements OnInit {
       }
     });
   }
-
   nuevaSucursal(): void {
     this.editandoId = null;
     this.errorMessage = null;
-    this.branchForm.reset();
+    this.branchForm.reset({ id_empresa: '' });
+    this.branchForm.get('id_empresa')?.enable();
     this.showForm = true;
   }
-
   editarSucursal(branch: any): void {
     this.editandoId = branch.id_sucursal;
     this.errorMessage = null;
@@ -81,39 +94,36 @@ export class BranchManagementComponent implements OnInit {
       nombre: branch.nombre,
       direccion: branch.direccion,
       telefono: branch.telefono,
-      fecha_apertura: branch.fecha_apertura
+      fecha_apertura: branch.fecha_apertura,
+      id_empresa: branch.id_empresa
     });
+    // Una sucursal no se mueve de empresa al editarla.
+    this.branchForm.get('id_empresa')?.disable();
     this.showForm = true;
   }
-
   cancelar(): void {
     this.showForm = false;
     this.editandoId = null;
     this.errorMessage = null;
     this.branchForm.reset();
   }
-
   onSubmit(): void {
     if (this.branchForm.invalid) return;
     this.errorMessage = null;
-
     const peticion = this.editandoId
       ? this.branchService.updateBranch(this.editandoId, this.branchForm.value)
       : this.branchService.createBranch(this.branchForm.value);
-
     peticion.subscribe({
       next: () => {
         this.cancelar();
         this.loadData();
       },
       error: (err) => {
-        this.errorMessage = err.error?.nombre?.[0]
-          || err.error?.id_ciudad?.[0]
-          || 'No se pudo guardar la sucursal.';
+        // Incluye el límite de sucursales del plan (403) y la empresa faltante.
+        this.errorMessage = mensajeDeError(err, 'No se pudo guardar la sucursal.');
       }
     });
   }
-
   eliminarSucursal(branch: any): void {
     if (!confirm(`¿Eliminar la sucursal "${branch.nombre}"?`)) return;
     this.branchService.deleteBranch(branch.id_sucursal).subscribe({

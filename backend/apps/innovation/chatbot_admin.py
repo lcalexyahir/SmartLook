@@ -44,15 +44,17 @@ SIN_CONSULTA = {
 HERRAMIENTAS = ca.HERRAMIENTAS_ADMIN + [SIN_CONSULTA]
 
 
-def _instrucciones():
-    """Instrucciones del asistente con la fecha de hoy y las sucursales reales."""
+def _instrucciones(usuario):
+    """Instrucciones del asistente con la fecha de hoy, la plataforma y sus empresas.
+
+    SaaS: el SUPER_ADMIN conoce todas las empresas con sus sucursales; el
+    personal de una empresa solo conoce la suya.
+    """
     hoy = timezone.localdate()
-    sucursales = ", ".join(ca._nombres_sucursales()) or "sin registrar"
     return (
-        "Eres el asistente de gestión de SmartLook, una cadena de tiendas de ropa en "
-        "Bolivia. Ayudas al personal (administradores y encargados) a consultar "
-        "inventario, ventas, entregas, reservas y uso del vestidor virtual. Hablas en "
-        "español, claro y breve.\n"
+        "Eres el asistente de gestión de SmartLook, una plataforma de tiendas de ropa "
+        "en Bolivia. Ayudas al personal a consultar inventario, ventas, entregas, "
+        "reservas y uso del vestidor virtual. Hablas en español, claro y breve.\n"
         f"Hoy es {DIAS[hoy.weekday()]} {hoy:%d/%m/%Y}. Los montos están en bolivianos (Bs).\n"
         "Reglas:\n"
         "- Para cualquier dato del negocio usa SIEMPRE una consulta. Nunca inventes "
@@ -67,11 +69,13 @@ def _instrucciones():
         "tabla completa se muestra aparte y se puede descargar en PDF, Excel y HTML.\n"
         "- Si el resultado trae 'notas', menciónalas.\n"
         "- No pidas ni menciones datos personales de clientes.\n"
-        f"Sucursales: {sucursales}."
+        "- Si preguntan por datos a los que el usuario no tiene acceso (otra empresa), "
+        "usa sin_consulta.\n"
+        + ca.contexto_plataforma(usuario)
     )
 
 
-def _instrucciones_respuesta(resumen=None):
+def _instrucciones_respuesta(usuario, resumen=None):
     """Instrucciones para redactar la respuesta final, sin llamar herramientas.
 
     Se usan en la segunda llamada al modelo. No incluyen la regla de 'usa siempre
@@ -79,10 +83,12 @@ def _instrucciones_respuesta(resumen=None):
     proveedor rechazaba la petición.
     """
     base = (
-        "Eres el asistente de gestión de SmartLook, una cadena de tiendas de ropa en "
-        "Bolivia. Hablas en español, claro y breve. No llames a ninguna función ni "
+        "Eres el asistente de gestión de SmartLook, una plataforma de tiendas de ropa "
+        "en Bolivia. Hablas en español, claro y breve. No llames a ninguna función ni "
         "herramienta: responde solo con texto. Los montos están en bolivianos (Bs). "
-        "No pidas ni menciones datos personales de clientes.\n"
+        "No pidas ni menciones datos personales de clientes. Indica de qué empresa "
+        "son las cifras (aparece en el subtítulo del resultado).\n"
+        + ca.contexto_plataforma(usuario) + "\n"
     )
     if resumen is None:
         return base + (
@@ -168,7 +174,7 @@ def responder_gestion(usuario, mensaje):
         )
 
     conversacion = (
-        [{"role": "system", "content": _instrucciones()}]
+        [{"role": "system", "content": _instrucciones(usuario)}]
         + _historial(usuario)
         + [{"role": "user", "content": mensaje}]
     )
@@ -197,7 +203,7 @@ def responder_gestion(usuario, mensaje):
             ]
         r = chat(
             [
-                {"role": "system", "content": _instrucciones_respuesta(resumen)},
+                {"role": "system", "content": _instrucciones_respuesta(usuario, resumen)},
                 {"role": "user", "content": mensaje},
             ]
         )

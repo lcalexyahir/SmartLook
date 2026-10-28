@@ -1,13 +1,31 @@
 <div class="pos-container">
   <h2>Punto de Venta</h2>
-
+  <!-- NUEVO (A.5): estado de la conexión y del catálogo guardado -->
+  <div class="conexion" [class.conexion--offline]="!enLinea">
+    <span class="punto"></span>
+    <div class="conexion-texto">
+      <strong>{{ enLinea ? 'En línea' : 'Sin conexión' }}</strong>
+      <span *ngIf="!enLinea">
+        Las ventas en efectivo se guardan en este dispositivo y se envían al recuperar internet.
+      </span>
+      <span *ngIf="fechaCatalogo" class="catalogo-info">
+        Catálogo guardado: {{ totalCatalogo }} prendas, el {{ fechaCatalogo | date:'dd/MM/yyyy HH:mm' }}.
+        <ng-container *ngIf="!enLinea">Los precios y el stock pueden estar desactualizados.</ng-container>
+      </span>
+      <span *ngIf="!fechaCatalogo && !enLinea" class="catalogo-info">
+        No hay catálogo guardado en este dispositivo: conéctate una vez para descargarlo.
+      </span>
+    </div>
+    <button type="button" class="btn-link" *ngIf="enLinea" [disabled]="actualizandoCatalogo" (click)="actualizarCatalogo()">
+      {{ actualizandoCatalogo ? 'Actualizando...' : 'Actualizar catálogo' }}
+    </button>
+  </div>
   <!-- Comprobante tras registrar la venta -->
-  <div *ngIf="ventaConfirmada" class="receipt">
+  <div *ngIf="ventaConfirmada && !ventaConfirmada.offline" class="receipt">
     <h3>Venta registrada</h3>
     <p>Venta #{{ ventaConfirmada.id_venta }} - {{ ventaConfirmada.sucursal }}</p>
     <p>Cajero: {{ ventaConfirmada.usuario }}</p>
     <p>Método de pago: {{ ventaConfirmada.metodo_pago }}</p>
-
     <table class="receipt-table">
       <thead>
         <tr>
@@ -26,12 +44,38 @@
         </tr>
       </tbody>
     </table>
-
     <p class="receipt-total">Total: Bs {{ ventaConfirmada.total }}</p>
-
     <button type="button" class="btn btn-accent" (click)="nuevaVenta()">Nueva venta</button>
   </div>
-
+  <!-- NUEVO (A.5): comprobante provisional de una venta guardada sin conexión -->
+  <div *ngIf="ventaConfirmada?.offline" class="receipt receipt--offline">
+    <h3>Venta guardada sin conexión</h3>
+    <p class="pendiente-tag">Registrada localmente · pendiente de enviar</p>
+    <p>{{ ventaConfirmada.sucursal }} - {{ ventaConfirmada.fecha_operacion | date:'dd/MM/yyyy HH:mm' }}</p>
+    <p>Método de pago: {{ ventaConfirmada.metodo_pago }}</p>
+    <p class="codigo">Código: {{ ventaConfirmada.uuid }}</p>
+    <table class="receipt-table">
+      <thead>
+        <tr>
+          <th>Prenda</th>
+          <th>Cant.</th>
+          <th>Precio</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of ventaConfirmada.items">
+          <td>{{ item.nombre }}</td>
+          <td>{{ item.cantidad }}</td>
+          <td>Bs {{ item.precio | number:'1.2-2' }}</td>
+          <td>Bs {{ item.precio * item.cantidad | number:'1.2-2' }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="receipt-total">Total: Bs {{ ventaConfirmada.total | number:'1.2-2' }}</p>
+    <p class="nota">La venta queda confirmada cuando el servidor la registre al volver la conexión.</p>
+    <button type="button" class="btn btn-accent" (click)="nuevaVenta()">Nueva venta</button>
+  </div>
   <!-- Armado de la venta -->
   <div *ngIf="!ventaConfirmada" class="pos-layout">
     <div class="search-panel">
@@ -46,9 +90,8 @@
         />
         <button type="button" class="btn btn-secondary" (click)="buscar()">Buscar</button>
       </div>
-
+      <p class="busqueda-local" *ngIf="busquedaLocal && !buscando">Resultados del catálogo guardado en este dispositivo.</p>
       <div *ngIf="buscando">Buscando...</div>
-
       <div class="results" *ngIf="!buscando && resultados.length > 0">
         <div class="result-item" *ngFor="let r of resultados">
           <div class="result-info">
@@ -59,14 +102,11 @@
         </div>
       </div>
     </div>
-
     <div class="sale-panel">
       <h3>Venta actual</h3>
-
       <div *ngIf="items.length === 0" class="empty-state">
         Sin prendas agregadas.
       </div>
-
       <div class="cart-item" *ngFor="let item of items">
         <span class="item-name">{{ item.nombre }}</span>
         <div class="item-qty">
@@ -77,12 +117,10 @@
         <span class="item-subtotal">Bs {{ item.precio * item.cantidad }}</span>
         <button type="button" class="btn-link btn-danger" (click)="quitar(item)">Quitar</button>
       </div>
-
       <div class="sale-total">
         <span>Total</span>
         <span class="total-value">Bs {{ total }}</span>
       </div>
-
       <div class="form-group">
         <label for="sucursal">Sucursal</label>
         <select id="sucursal" [(ngModel)]="sucursalSeleccionada">
@@ -90,32 +128,67 @@
           <option *ngFor="let s of sucursales" [ngValue]="s.id_sucursal">{{ s.nombre }}</option>
         </select>
       </div>
-
       <div class="form-group">
         <label for="metodoPago">Método de pago</label>
         <select id="metodoPago" [(ngModel)]="metodoPago" (change)="onMetodoPagoChange()">
           <option value="EFECTIVO">Efectivo</option>
-          <option value="TARJETA">Tarjeta (datáfono físico)</option>
-          <option value="QR">QR</option>
+          <option value="TARJETA" [disabled]="!enLinea">Tarjeta (datáfono físico)</option>
+          <option value="QR" [disabled]="!enLinea">QR</option>
         </select>
+        <small class="ayuda" *ngIf="!enLinea">Sin conexión solo se aceptan pagos en efectivo.</small>
       </div>
-
       <div *ngIf="metodoPago === 'QR'" class="qr-block">
         <p class="qr-hint">Mostrale este código al cliente para que pague desde su app bancaria.</p>
         <img *ngIf="qrDataUrl" [src]="qrDataUrl" alt="Código QR de pago" class="qr-image" />
         <button type="button" class="btn-link" (click)="generarQr()">Actualizar QR</button>
       </div>
-
       <p class="error-message" *ngIf="error">{{ error }}</p>
-
       <button
         type="button"
         class="btn btn-accent btn-block"
         [disabled]="registrando"
         (click)="registrarVenta()"
       >
-        {{ registrando ? 'Registrando...' : 'Registrar Venta' }}
+        {{ registrando ? 'Registrando...' : (enLinea ? 'Registrar Venta' : 'Guardar venta sin conexión') }}
       </button>
     </div>
   </div>
+  <!-- NUEVO (A.5): ventas guardadas en este dispositivo y su estado -->
+  <section class="cola" *ngIf="ventasLocales.length > 0 || resultadoSync">
+    <div class="cola-head">
+      <h3>Ventas sin conexión</h3>
+      <div class="cola-acciones">
+        <button type="button" class="btn btn-secondary" *ngIf="confirmadas > 0" (click)="limpiarConfirmadas()">
+          Quitar confirmadas
+        </button>
+        <button type="button" class="btn btn-secondary" [disabled]="!enLinea || sincronizando || pendientes === 0"
+                (click)="sincronizarAhora()">
+          {{ sincronizando ? 'Sincronizando...' : 'Sincronizar ahora' }}
+        </button>
+      </div>
+    </div>
+    <p class="cola-resumen">
+      {{ pendientes }} por enviar · {{ confirmadas }} confirmada(s)<span *ngIf="rechazadas > 0"> · {{ rechazadas }} rechazada(s)</span>
+    </p>
+    <div class="sync-resultado" *ngIf="resultadoSync as r" [class.sync-resultado--error]="!!r.error">
+      <ng-container *ngIf="!r.error">
+        Última sincronización ({{ r.fecha | date:'dd/MM HH:mm' }}): {{ r.sincronizadas }} registrada(s),
+        {{ r.duplicadas }} ya registrada(s) antes, {{ r.rechazadas }} rechazada(s).
+      </ng-container>
+      <ng-container *ngIf="r.error">{{ r.error }}</ng-container>
+    </div>
+    <div class="cola-item" *ngFor="let v of ventasLocales" [class.cola-item--rechazada]="v.estado === 'RECHAZADA'">
+      <div class="cola-info">
+        <strong>{{ v.sucursal || 'Sucursal' }}</strong>
+        <span>{{ v.fecha_operacion | date:'dd/MM/yyyy HH:mm' }} · {{ v.items.length }} prenda(s) · Bs {{ v.total | number:'1.2-2' }}</span>
+        <span class="codigo">Código: {{ v.uuid }}</span>
+        <span *ngIf="v.estado === 'CONFIRMADA' && v.fecha_confirmacion">
+          Confirmada el {{ v.fecha_confirmacion | date:'dd/MM/yyyy HH:mm' }}<ng-container *ngIf="v.mensaje"> · {{ v.mensaje }}</ng-container>
+        </span>
+        <span class="motivo" *ngIf="v.estado === 'RECHAZADA'">Motivo: {{ v.mensaje }}</span>
+      </div>
+      <span class="estado" [ngClass]="'estado--' + v.estado.toLowerCase()">{{ textoEstado(v) }}</span>
+      <button type="button" class="btn-link btn-danger" *ngIf="v.estado === 'RECHAZADA'" (click)="descartar(v)">Descartar</button>
+    </div>
+  </section>
 </div>

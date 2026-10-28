@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.users_auth.suscripciones import requiere_funcion
 from common.permissions import IsEncargadoSucursal
 from common.utils import get_client_ip, log_audit
 
@@ -17,6 +18,10 @@ from .llm import ServicioIANoDisponible
 from .models import ReporteAsistente
 
 MAX_REPORTES_LISTADO = 50
+
+# NUEVO (SaaS - paso 5): el asistente de gestión y sus reportes solo están
+# disponibles en planes que incluyen reportes con IA (PRO y ULTRA).
+PERMISOS_ASISTENTE = [IsEncargadoSucursal, requiere_funcion("reportes_ia")]
 
 
 def _fecha_texto(momento):
@@ -37,9 +42,10 @@ def _reporte_del_usuario(request, id_reporte):
 class AsistenteGestionView(APIView):
     """CU20 - El personal pregunta y recibe la respuesta con sus resultados."""
 
-    permission_classes = [IsEncargadoSucursal]
+    permission_classes = PERMISOS_ASISTENTE
 
     def post(self, request):
+        """Responde la pregunta del personal y registra en bitácora los reportes generados."""
         datos = request.data if isinstance(request.data, dict) else {}
         mensaje = datos.get("mensaje")
         if not isinstance(mensaje, str):
@@ -73,9 +79,10 @@ class AsistenteGestionView(APIView):
 class ReportesGestionView(APIView):
     """Reportes guardados del usuario, del más reciente al más antiguo."""
 
-    permission_classes = [IsEncargadoSucursal]
+    permission_classes = PERMISOS_ASISTENTE
 
     def get(self, request):
+        """Lista los últimos reportes del usuario."""
         reportes = ReporteAsistente.objects.filter(id_usuario=request.user).order_by(
             "-fecha_creacion", "-id_reporte"
         )[:MAX_REPORTES_LISTADO]
@@ -96,9 +103,10 @@ class ReportesGestionView(APIView):
 class ReporteDetalleView(APIView):
     """Un reporte guardado, completo, para volver a mostrarlo en pantalla."""
 
-    permission_classes = [IsEncargadoSucursal]
+    permission_classes = PERMISOS_ASISTENTE
 
     def get(self, request, id_reporte):
+        """Devuelve un reporte guardado del usuario."""
         reporte = _reporte_del_usuario(request, id_reporte)
         return Response(
             {
@@ -115,9 +123,10 @@ class ReporteDetalleView(APIView):
 class ReporteExportarView(APIView):
     """Descarga un reporte guardado en PDF, Excel (xlsx) o HTML."""
 
-    permission_classes = [IsEncargadoSucursal]
+    permission_classes = PERMISOS_ASISTENTE
 
     def get(self, request, id_reporte):
+        """Exporta un reporte guardado en el formato pedido."""
         reporte = _reporte_del_usuario(request, id_reporte)
         formato = request.query_params.get("formato", "pdf")
         meta = {

@@ -9,41 +9,36 @@
 // parcial)" (solo algunas), usando los campos devuelto/tiene_devolucion
 // que ahora manda OrderSerializer. El botón de devolución se oculta si
 // el pedido ya se devolvió por completo.
-
+// MODIFICADO (SaaS): cada pedido muestra la tienda (empresa) donde se hizo,
+// usando el campo empresa_nombre que manda OrderSerializer.
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { of, Subject, timer } from 'rxjs';
 import { catchError, switchMap, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../../../core/services/api.service';
-
 const PASOS_DELIVERY = [
   { clave: 'PENDIENTE', texto: 'Pedido recibido' },
   { clave: 'EN_PREPARACION', texto: 'En preparación' },
   { clave: 'EN_CAMINO', texto: 'En camino' },
   { clave: 'ENTREGADO', texto: 'Entregado' }
 ];
-
 const MOTIVOS_DEVOLUCION = [
   { value: 'TALLA_INCORRECTA', label: 'Talla incorrecta' },
   { value: 'COLOR_INCORRECTO', label: 'Color incorrecto' },
   { value: 'PRODUCTO_DANADO', label: 'Producto dañado/defectuoso' },
   { value: 'OTRO', label: 'Otro' }
 ];
-
 @Component({
   selector: 'app-orders-page',
   template: `
     <div class="orders-container">
       <h2>Mis pedidos</h2>
       <p class="hint">Esta pantalla se actualiza sola cada 10 segundos.</p>
-
       <div *ngIf="cargando">Cargando pedidos...</div>
       <p class="error" *ngIf="error">{{ error }}</p>
-
       <div class="empty" *ngIf="!cargando && !error && pedidos.length === 0">
         <p>Todavía no tienes pedidos.</p>
         <a routerLink="/catalog" class="btn btn-accent">Ir al catálogo</a>
       </div>
-
       <div class="order-card" *ngFor="let o of pedidos">
         <div class="order-head">
           <div>
@@ -52,19 +47,17 @@ const MOTIVOS_DEVOLUCION = [
           </div>
           <span class="badge" [ngClass]="claseEstado(o)">{{ textoEstado(o) }}</span>
         </div>
-
+        <p class="order-store" *ngIf="o.empresa_nombre">Tienda: {{ o.empresa_nombre }}</p>
         <ul class="order-items">
           <li *ngFor="let i of o.items">
             <span>{{ i.cantidad }} x {{ i.variante }}</span>
             <span>Bs {{ i.subtotal }}</span>
           </li>
         </ul>
-
         <div class="order-total">
           <span *ngIf="o.tipo_entrega === 'DELIVERY'">Envío: Bs {{ o.costo_envio }}</span>
           <strong>Total: Bs {{ o.total }}</strong>
         </div>
-
         <div class="order-delivery" *ngIf="o.tipo_entrega === 'DELIVERY' && o.delivery">
           <p>
             Entrega en: {{ o.delivery.direccion }}
@@ -79,39 +72,31 @@ const MOTIVOS_DEVOLUCION = [
             </li>
           </ol>
         </div>
-
         <p class="order-pickup" *ngIf="o.tipo_entrega !== 'DELIVERY'">
           Retiro en sucursal: {{ o.sucursal }}
         </p>
-
         <p class="order-devolucion-nota" *ngIf="o.tiene_devolucion">
           Este pedido tiene una devolución registrada.
         </p>
-
         <div class="order-actions" *ngIf="puedeDevolver(o)">
           <button class="btn btn-link" (click)="abrirDevolucion(o)">Solicitar devolución</button>
         </div>
       </div>
     </div>
-
     <div class="modal-overlay" *ngIf="mostrandoDevolucion" (click)="cerrarDevolucion()">
       <div class="modal" (click)="$event.stopPropagation()">
         <h3>Devolver prendas del Pedido #{{ mostrandoDevolucion.id_orden }}</h3>
-
         <div class="mensajes-exito" *ngIf="mensajesDevolucion">
           <p *ngFor="let m of mensajesDevolucion">{{ m }}</p>
           <button class="btn btn-primary" (click)="cerrarDevolucion()">Cerrar</button>
         </div>
-
         <div *ngIf="!mensajesDevolucion">
           <p class="error" *ngIf="errorDevolucion">{{ errorDevolucion }}</p>
-
           <div class="devolucion-item" *ngFor="let item of itemsDevolucion">
             <label class="checkbox-row">
               <input type="checkbox" [(ngModel)]="item.incluir">
               {{ item.variante }} (compraste {{ item.cantidadMaxima }})
             </label>
-
             <div class="devolucion-fields" *ngIf="item.incluir">
               <div class="form-group">
                 <label>Cantidad a devolver</label>
@@ -125,7 +110,6 @@ const MOTIVOS_DEVOLUCION = [
               </div>
             </div>
           </div>
-
           <div class="modal-actions">
             <button class="btn" (click)="cerrarDevolucion()">Cancelar</button>
             <button class="btn btn-primary" [disabled]="enviandoDevolucion" (click)="enviarDevolucion()">
@@ -149,6 +133,7 @@ const MOTIVOS_DEVOLUCION = [
     }
     .order-head { display: flex; justify-content: space-between; align-items: center; }
     .order-date { margin-left: 0.75rem; font-size: 0.85rem; color: #999; }
+    .order-store { margin: 0.35rem 0 0; font-size: 0.9rem; font-weight: 600; color: #0f3460; }
     .badge {
       padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem;
       font-weight: 600; background: #eef3fb; color: #0f3460;
@@ -224,17 +209,13 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
   error: string | null = null;
   pasos = PASOS_DELIVERY;
   motivos = MOTIVOS_DEVOLUCION;
-
   mostrandoDevolucion: any = null;
   itemsDevolucion: any[] = [];
   enviandoDevolucion = false;
   errorDevolucion: string | null = null;
   mensajesDevolucion: string[] | null = null;
-
   private destroy$ = new Subject<void>();
-
   constructor(private api: ApiService) {}
-
   ngOnInit(): void {
     timer(0, 10000).pipe(
       switchMap(() =>
@@ -252,18 +233,15 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
       this.pedidos = lista.filter((o) => o.estado !== 'PENDIENTE');
     });
   }
-
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
   indicePaso(o: any): number {
     const estado = o.delivery?.estado;
     const i = this.pasos.findIndex((p) => p.clave === estado);
     return i < 0 ? 0 : i;
   }
-
   textoEstado(o: any): string {
     if (o.estado === 'CANCELADA') {
       return 'Cancelado';
@@ -279,7 +257,6 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
     }
     return o.estado === 'ENTREGADA' ? 'Entregado' : 'Pagado';
   }
-
   claseEstado(o: any): string {
     if (o.devuelto) {
       return 'estado-devuelto';
@@ -292,11 +269,9 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
     }
     return 'estado-' + String(o.estado).toLowerCase();
   }
-
   puedeDevolver(o: any): boolean {
     return o.tipo_entrega === 'DELIVERY' && o.estado === 'ENTREGADA' && !o.devuelto;
   }
-
   abrirDevolucion(o: any): void {
     this.mostrandoDevolucion = o;
     this.errorDevolucion = null;
@@ -310,23 +285,18 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
       incluir: false
     }));
   }
-
   cerrarDevolucion(): void {
     this.mostrandoDevolucion = null;
   }
-
   enviarDevolucion(): void {
     if (!this.mostrandoDevolucion) return;
-
     const seleccionados = this.itemsDevolucion.filter((i) => i.incluir);
     if (seleccionados.length === 0) {
       this.errorDevolucion = 'Selecciona al menos una prenda a devolver.';
       return;
     }
-
     this.enviandoDevolucion = true;
     this.errorDevolucion = null;
-
     const payload = {
       id_orden: this.mostrandoDevolucion.id_orden,
       items: seleccionados.map((i) => ({
@@ -335,7 +305,6 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
         motivo: i.motivo
       }))
     };
-
     this.api.post<any>('/sales/devoluciones/solicitar/', payload).subscribe({
       next: (data: any) => {
         this.enviandoDevolucion = false;

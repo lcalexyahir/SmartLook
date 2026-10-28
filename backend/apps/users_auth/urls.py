@@ -8,15 +8,22 @@ from .views import (
     PermisoViewSet,
     BitacoraViewSet,
 )
-
+from .views_suscripcion import PlanSuscripcionViewSet, SuscripcionViewSet
+from .views_empresa import EmpresaViewSet, PerfilView
 router = DefaultRouter()
 router.register("usuarios", UsuarioViewSet, basename="usuarios")
 router.register("roles", RolViewSet, basename="roles")
 router.register("permisos", PermisoViewSet, basename="permisos")
 router.register("bitacora", BitacoraViewSet, basename="bitacora")
-
+# NUEVO (SaaS - paso 5): planes y suscripciones.
+router.register("planes", PlanSuscripcionViewSet, basename="planes")
+router.register("suscripciones", SuscripcionViewSet, basename="suscripciones")
+# NUEVO (SaaS): empresas (tenants) con su logo, administrador y suscripción.
+router.register("empresas", EmpresaViewSet, basename="empresas")
 urlpatterns = [
     path("registro/", RegistroClienteView.as_view(), name="registro"),
     path("login/", LoginView.as_view(), name="login"),
+    # NUEVO: perfil del usuario autenticado (consulta y edición).
+    path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", include(router.urls)),
 ]

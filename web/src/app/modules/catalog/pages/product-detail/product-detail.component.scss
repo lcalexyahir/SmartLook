@@ -6,42 +6,40 @@
   max-width: 1200px;
   margin: 0 auto;
 }
-
 .product-gallery {
   min-width: 0;
-
   img {
     width: 100%;
     border-radius: 8px;
     object-fit: cover;
   }
 }
-
 .product-details {
   min-width: 0;
-
   .product-brand {
     text-transform: uppercase;
     letter-spacing: 2px;
     color: #666;
     font-size: 0.85rem;
   }
-
   h1 {
     margin: 0.5rem 0;
     color: #1a1a2e;
   }
-
+  // SaaS: tienda (empresa) que vende el producto
+  .product-store {
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+    color: #0f3460;
+  }
   .product-category {
     color: #999;
     margin-bottom: 1rem;
   }
-
   .product-description {
     line-height: 1.6;
     margin-bottom: 1.5rem;
   }
-
   .product-meta {
     display: flex;
     gap: 1.5rem;
@@ -49,17 +47,14 @@
     flex-wrap: wrap;
   }
 }
-
 .variant-section {
   margin-bottom: 2rem;
-
   .variant-list {
     display: flex;
     flex-wrap: wrap;
     gap: 0.8rem;
     margin-top: 1rem;
   }
-
   .variant-item {
     display: flex;
     align-items: center;
@@ -70,19 +65,16 @@
     background: white;
     cursor: pointer;
     transition: all 0.3s ease;
-
     &.selected {
       border-color: #0f3460;
       background: #f0f4f8;
     }
-
     .variant-color {
       width: 20px;
       height: 20px;
       border-radius: 50%;
       border: 1px solid #ccc;
     }
-
     .variant-price {
       font-weight: 600;
       color: #0f3460;
@@ -90,68 +82,56 @@
     }
   }
 }
-
 /* ===== NUEVO: CU08 - Disponibilidad por Sucursal ===== */
 .availability-section {
   margin-bottom: 2rem;
-
   .availability-table {
     width: 100%;
     border-collapse: collapse;
-
     th, td {
       padding: 0.6rem;
       text-align: left;
       border-bottom: 1px solid #e0e0e0;
     }
   }
-
   .badge-disponible {
     color: #4caf50;
     font-weight: 600;
   }
-
   .badge-agotado {
     color: #f44336;
     font-weight: 600;
   }
-
   .no-stock {
     color: #999;
     font-style: italic;
   }
 }
 /* ===== FIN NUEVO ===== */
-
 .action-section {
   .price-display {
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
-
     .price-label {
       font-size: 1rem;
       color: #666;
     }
-
     .price-value {
       font-size: 1.8rem;
       font-weight: 700;
       color: #0f3460;
     }
   }
-
   .stock-info {
     margin-bottom: 1rem;
     color: #4caf50;
-
     &.out-of-stock {
       color: #f44336;
     }
   }
 }
-
 /* ===== NUEVO: CU14 - Agregar al Carrito ===== */
 .cart-message {
   margin-top: 0.75rem;
@@ -159,7 +139,6 @@
   color: #4caf50;
 }
 /* ===== FIN NUEVO ===== */
-
 /* ===== NUEVO: CICLO 3 - Responsive ===== */
 @media (max-width: 768px) {
   .detail-container {
@@ -167,18 +146,29 @@
     gap: 1.5rem;
     padding: 1.25rem;
   }
-
   .product-gallery img {
     max-height: 360px;
   }
-
   .product-details .product-meta {
     gap: 1rem;
   }
-
   .availability-section .availability-table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
+  }
+}
+// NUEVO (A.5): prenda no guardada para consultar sin conexión
+.detail-offline {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 1.5rem;
+  text-align: center;
+  border-radius: 8px;
+  background: #fff3e0;
+  color: #8a4b00;
+  a {
+    color: inherit;
+    font-weight: 600;
   }
 }

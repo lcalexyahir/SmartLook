@@ -1,7 +1,16 @@
 # backend/apps/sales/urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CartViewSet, CartItemViewSet, OrderViewSet, PosSaleViewSet, DeliveryViewSet, DevolucionViewSet
+from .views import (
+    CartViewSet,
+    CartItemViewSet,
+    OrderViewSet,
+    PosSaleViewSet,
+    DeliveryViewSet,
+    DevolucionViewSet,
+    SyncOperacionViewSet,
+)
 
 router = DefaultRouter()
 router.register("carritos", CartViewSet, basename="carritos")
@@ -10,6 +19,8 @@ router.register("ordenes", OrderViewSet, basename="ordenes")
 router.register("ventas-pos", PosSaleViewSet, basename="ventas-pos")
 router.register("entregas", DeliveryViewSet, basename="entregas")
 router.register("devoluciones", DevolucionViewSet, basename="devoluciones")
+# NUEVO (SaaS - paso 6): sincronización de operaciones sin conexión.
+router.register("sync", SyncOperacionViewSet, basename="sync")
 
 urlpatterns = [
     path("", include(router.urls)),

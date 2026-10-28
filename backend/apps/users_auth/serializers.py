@@ -5,6 +5,8 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from django.db import transaction
 
+from apps.catalog.models import Sucursal
+
 from .models import (
     Usuario,
     Cliente,
@@ -44,11 +46,23 @@ class PermisoSerializer(serializers.ModelSerializer):
 # LISTAR USUARIOS
 # ==========================
 
+
 class UsuarioSerializer(serializers.ModelSerializer):
 
     roles = RolSerializer(
         many=True,
         read_only=True
+    )
+
+    # NUEVO (SaaS): empresa y sucursal del usuario (vacías para SUPER_ADMIN
+    # y para clientes, que son globales).
+    id_empresa = serializers.IntegerField(source="id_empresa_id", read_only=True)
+    empresa_nombre = serializers.CharField(
+        source="id_empresa.nombre", read_only=True, default=None
+    )
+    id_sucursal = serializers.IntegerField(source="id_sucursal_id", read_only=True)
+    sucursal_nombre = serializers.CharField(
+        source="id_sucursal.nombre", read_only=True, default=None
     )
 
     class Meta:
@@ -64,13 +78,18 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "estado",
             "ultimo_acceso",
             "fecha_creacion",
-            "roles"
+            "roles",
+            "id_empresa",
+            "empresa_nombre",
+            "id_sucursal",
+            "sucursal_nombre",
         ]
 
 
 # ==========================
 # CREAR USUARIOS
 # ==========================
+
 
 class UsuarioCreateSerializer(serializers.ModelSerializer):
 
@@ -83,6 +102,15 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         write_only=True
     )
 
+    # NUEVO (SaaS): sucursal opcional del empleado. La empresa NO se recibe
+    # aquí: la asigna la vista (la del administrador que crea el usuario).
+    id_sucursal = serializers.PrimaryKeyRelatedField(
+        queryset=Sucursal.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
 
         model = Usuario
@@ -93,11 +121,12 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             "correo",
             "telefono",
             "password",
-            "rol"
+            "rol",
+            "id_sucursal"
         ]
 
-
     def create(self, validated_data):
+        """Crea el usuario (con la empresa que inyecta la vista) y su rol."""
 
         rol = validated_data.pop(
             "rol"
@@ -136,6 +165,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
 # EDITAR USUARIOS
 # ==========================
 
+
 class UsuarioUpdateSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(
@@ -149,6 +179,14 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
         required=False
     )
 
+    # NUEVO (SaaS): sucursal del empleado (debe ser de su misma empresa).
+    id_sucursal = serializers.PrimaryKeyRelatedField(
+        queryset=Sucursal.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
 
         model = Usuario
@@ -160,11 +198,12 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
             "telefono",
             "password",
             "estado",
-            "rol"
+            "rol",
+            "id_sucursal"
         ]
 
-
     def update(self, instance, validated_data):
+        """Actualiza datos, contraseña y rol del usuario."""
 
         rol = validated_data.pop(
             "rol",
@@ -192,7 +231,6 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
 
         instance.save()
 
-
         if rol:
 
             from .models import UsuarioRol
@@ -210,7 +248,6 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
             )
 
         return instance
-
 
 
 # ==========================
@@ -260,6 +297,7 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
 
     # ---- RN2: fortaleza de contraseña ----
     def validate_password(self, valor):
+        """RN2: la contraseña debe tener al menos una letra y un número."""
         if not re.search(r'[A-Za-z]', valor) or not re.search(r'\d', valor):
             raise serializers.ValidationError(
                 "La contraseña debe contener al menos una letra y un número."
@@ -268,6 +306,7 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
 
     # ---- RN7: formato de teléfono boliviano (solo si viene informado) ----
     def validate_telefono(self, valor):
+        """RN7: teléfono boliviano de 8 dígitos (6 o 7), con o sin +591."""
         if not valor:
             return valor
         limpio = valor.strip().replace(" ", "").replace("-", "")
@@ -284,6 +323,7 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
 
     # ---- RN8: cliente debe ser mayor de 13 años (solo si viene informado) ----
     def validate_fecha_nacimiento(self, valor):
+        """RN8: el cliente debe tener la edad mínima."""
         if valor is None:
             return valor
         hoy = date.today()
@@ -297,6 +337,7 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
         return valor
 
     def validate(self, attrs):
+        """Las dos contraseñas deben coincidir."""
 
         if attrs["password"] != attrs["password_confirm"]:
 
@@ -306,8 +347,8 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
 
         return attrs
 
-
     def create(self, validated_data):
+        """Registra al cliente (global: sin empresa) con su rol CLIENTE."""
 
         validated_data.pop(
             "password_confirm"
@@ -382,7 +423,6 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
         return usuario
 
 
-
 class LoginSerializer(serializers.Serializer):
 
     correo = serializers.EmailField()
@@ -392,11 +432,9 @@ class LoginSerializer(serializers.Serializer):
     )
 
 
-
 class BitacoraSerializer(serializers.ModelSerializer):
 
     usuario = serializers.SerializerMethodField()
-
 
     class Meta:
 
@@ -415,8 +453,8 @@ class BitacoraSerializer(serializers.ModelSerializer):
             "fecha_evento"
         ]
 
-
     def get_usuario(self, obj):
+        """Nombre del usuario que generó el evento."""
 
         if obj.id_usuario:
 

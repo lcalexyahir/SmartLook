@@ -12,6 +12,42 @@ from .integrations.stripe_payment import crear_intento_pago, verificar_pago, Pag
 from .integrations.envio import cotizar, EnvioError
 
 
+class CartService:
+    """NUEVO (SaaS): el cliente es global, así que tiene un carrito activo por empresa."""
+
+    @staticmethod
+    def obtener_carrito(cliente, empresa):
+        """Devuelve (o crea) el carrito ACTIVO del cliente para una empresa.
+
+        Si el cliente tiene un carrito activo vacío sin empresa (creado al
+        abrir "Mi carrito" antes de agregar prendas), se reutiliza y se le
+        asigna la empresa, para no dejar carritos huérfanos.
+        """
+        cart = Cart.objects.filter(
+            id_cliente=cliente, estado="ACTIVO", id_empresa=empresa
+        ).order_by("-fecha_actualizacion").first()
+        if cart:
+            return cart
+        cart = Cart.objects.filter(
+            id_cliente=cliente, estado="ACTIVO", id_empresa__isnull=True
+        ).first()
+        if cart and not cart.cartitem_set.exists():
+            cart.id_empresa = empresa
+            cart.save(update_fields=["id_empresa"])
+            return cart
+        return Cart.objects.create(id_cliente=cliente, estado="ACTIVO", id_empresa=empresa)
+
+    @staticmethod
+    def carrito_de_sucursal(cliente, sucursal, bloquear=False):
+        """Carrito ACTIVO del cliente con prendas de la empresa de esa sucursal (o None)."""
+        queryset = Cart.objects.filter(
+            id_cliente=cliente, estado="ACTIVO", id_empresa_id=sucursal.id_empresa_id
+        )
+        if bloquear:
+            queryset = queryset.select_for_update()
+        return queryset.order_by("-fecha_actualizacion").first()
+
+
 class CheckoutService:
     @staticmethod
     def iniciar_checkout(cliente, sucursal, tipo_entrega="RETIRO", entrega=None):
@@ -23,9 +59,15 @@ class CheckoutService:
         if tipo_entrega not in ("RETIRO", "DELIVERY"):
             raise ValueError("Tipo de entrega inválido.")
 
-        cart = Cart.objects.filter(id_cliente=cliente, estado="ACTIVO").first()
+        if sucursal.estado != "ACTIVA" or sucursal.id_empresa.estado != "ACTIVA":
+            raise ValueError("La sucursal elegida no está disponible.")
+
+        # SaaS: se paga el carrito de la empresa dueña de la sucursal elegida.
+        cart = CartService.carrito_de_sucursal(cliente, sucursal)
         if not cart or not cart.cartitem_set.exists():
-            raise ValueError("El carrito está vacío.")
+            raise ValueError(
+                f"No tienes prendas de {sucursal.id_empresa.nombre} en tu carrito."
+            )
 
         items = list(cart.cartitem_set.select_related("id_variante"))
 
@@ -75,6 +117,7 @@ class CheckoutService:
             order = Order.objects.create(
                 id_cliente=cliente,
                 id_sucursal=sucursal,
+                id_empresa_id=sucursal.id_empresa_id,
                 total=total,
                 estado="PENDIENTE",
                 metodo_pago="TARJETA",
@@ -97,6 +140,7 @@ class CheckoutService:
     @staticmethod
     @transaction.atomic
     def confirmar_pago(cliente, referencia_pago):
+        """Verifica el pago con Stripe y convierte el carrito de esa empresa en la orden."""
         order = Order.objects.select_for_update().filter(
             id_cliente=cliente, referencia_pago=referencia_pago, estado="PENDIENTE"
         ).first()
@@ -108,9 +152,7 @@ class CheckoutService:
         except PagoRechazadoError as e:
             raise ValueError(f"Pago rechazado: {e}")
 
-        cart = Cart.objects.select_for_update().filter(
-            id_cliente=cliente, estado="ACTIVO"
-        ).first()
+        cart = CartService.carrito_de_sucursal(cliente, order.id_sucursal, bloquear=True)
         if not cart or not cart.cartitem_set.exists():
             raise ValueError("El carrito ya no tiene items para completar la orden.")
 
@@ -199,7 +241,11 @@ class PosSaleService:
                 continue
 
             try:
-                variante = ProductoVariante.objects.get(pk=item["id_variante"])
+                # SaaS: solo prendas de la empresa dueña de la sucursal.
+                variante = ProductoVariante.objects.get(
+                    pk=item["id_variante"],
+                    id_producto__id_empresa_id=sucursal.id_empresa_id,
+                )
             except ProductoVariante.DoesNotExist:
                 raise ValueError(f"La prenda con id {item['id_variante']} no existe.")
             variantes[variante.id_variante] = variante
@@ -209,6 +255,7 @@ class PosSaleService:
                 raise ValueError(f"Stock insuficiente de '{variante}' en {sucursal.nombre}.")
 
         def _variante_de(item):
+            """Variante de una línea de la venta (normal o de reserva)."""
             if item.get("id_reserva_item"):
                 return reserva_items[item["id_reserva_item"]].id_variante
             return variantes[item["id_variante"]]

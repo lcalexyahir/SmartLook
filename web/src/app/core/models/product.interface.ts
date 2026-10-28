@@ -1,3 +1,6 @@
+// Branch y Supplier se definen en branch.interface.ts; se reexportan aquí porque
+// catalog.service.ts los importa desde este archivo.
+export type { Branch, Supplier } from './branch.interface';
 export interface Product {
   id_producto: number;
   categoria: Category;
@@ -12,22 +15,22 @@ export interface Product {
   modelo_virtual: string | null;
   estado: string;
   variantes: ProductVariant[];
+  // SaaS: tienda (empresa) dueña del producto. Solo lectura, la manda el backend.
+  id_empresa?: number | null;
+  empresa_nombre?: string | null;
 }
-
 export interface Category {
   id_categoria: number;
   nombre: string;
   descripcion: string;
   estado: boolean;
 }
-
 export interface Brand {
   id_marca: number;
   nombre: string;
   descripcion: string;
   estado: boolean;
 }
-
 export interface Season {
   id_temporada: number;
   nombre: string;
@@ -36,7 +39,6 @@ export interface Season {
   fecha_fin: string | null;
   estado: boolean;
 }
-
 export interface Collection {
   id_coleccion: number;
   nombre: string;
@@ -44,7 +46,6 @@ export interface Collection {
   anio: number | null;
   estado: boolean;
 }
-
 export interface ProductVariant {
   id_variante: number;
   talla: Size;
@@ -55,52 +56,15 @@ export interface ProductVariant {
   imagen_variante: string | null;
   estado: string;
 }
-
 export interface Size {
   id_talla: number;
   nombre: string;
   descripcion: string;
   estado: boolean;
 }
-
 export interface Color {
   id_color: number;
   nombre: string;
   codigo_hex: string;
-  estado: boolean;
-}
-
-export interface Branch {
-  id_sucursal: number;
-  nombre: string;
-  direccion: string;
-  telefono: string;
-  ciudad?: City | null;
-  estado: boolean;
-}
-
-
-export interface Supplier {
-  id_proveedor: number;
-  nombre: string;
-  nit: string;
-  telefono: string;
-  correo: string;
-  direccion: string;
-  estado: boolean;
-}
-
-
-export interface City {
-  id_ciudad: number;
-  nombre: string;
-  pais?: Country | null;
-  estado: boolean;
-}
-
-
-export interface Country {
-  id_pais: number;
-  nombre: string;
   estado: boolean;
 }

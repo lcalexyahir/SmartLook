@@ -3,8 +3,9 @@
     <img [src]="selectedVariant?.imagen_variante || product.imagen_producto || 'assets/placeholder.png'" [alt]="product.nombre">
   </div>
   <div class="product-details">
-    <span class="product-brand">{{ product.marca?.nombre || 'SmartLook' }}</span>
+    <span class="product-brand" *ngIf="product.marca?.nombre">{{ product.marca?.nombre }}</span>
     <h1>{{ product.nombre }}</h1>
+    <p class="product-store" *ngIf="product.empresa_nombre">Vendido por {{ product.empresa_nombre }}</p>
     <p class="product-category">{{ product.categoria?.nombre }}</p>
     <p class="product-description">{{ product.descripcion }}</p>
     <div class="product-meta">
@@ -12,7 +13,6 @@
       <span><strong>Género:</strong> {{ product.genero }}</span>
       <span><strong>Colección:</strong> {{ product.coleccion?.nombre || 'N/A' }}</span>
     </div>
-
     <div class="variant-section" *ngIf="product.variantes && product.variantes.length > 0">
       <h3>Variantes Disponibles</h3>
       <div class="variant-list">
@@ -28,11 +28,13 @@
         </button>
       </div>
     </div>
-
     <div class="availability-section" *ngIf="selectedVariant">
       <h3>Disponibilidad por Sucursal</h3>
       <div *ngIf="loadingStock">Consultando disponibilidad...</div>
-      <div *ngIf="!loadingStock && stockPorSucursal.length === 0" class="no-stock">
+      <div *ngIf="!loadingStock && sinDatosStock" class="no-stock">
+        Sin conexión: la disponibilidad de esta talla y color no se consultó antes en este dispositivo.
+      </div>
+      <div *ngIf="!loadingStock && !sinDatosStock && stockPorSucursal.length === 0" class="no-stock">
         No hay stock registrado en ninguna sucursal para esta variante.
       </div>
       <table class="availability-table" *ngIf="!loadingStock && stockPorSucursal.length > 0">
@@ -58,7 +60,6 @@
         </tbody>
       </table>
     </div>
-
     <div class="action-section" *ngIf="selectedVariant">
       <div class="price-display">
         <span class="price-label">Precio:</span>
@@ -77,5 +78,10 @@
       <p class="cart-message" *ngIf="cartMessage">{{ cartMessage }}</p>
     </div>
   </div>
+</div>
+<!-- NUEVO (A.5): la prenda no está guardada en este dispositivo -->
+<div class="detail-offline" *ngIf="!loading && !product && sinDatosProducto">
+  <p>Sin conexión: esta prenda no se consultó antes en este dispositivo.</p>
+  <a routerLink="/catalog">Volver al catálogo</a>
 </div>
 <app-loading-spinner *ngIf="loading"></app-loading-spinner>

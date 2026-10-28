@@ -4,19 +4,24 @@
     <a routerLink="/store/sucursales" routerLinkActive="active">Sucursales</a>
     <a routerLink="/store/ciudades" routerLinkActive="active">Ciudades</a>
   </nav>
-
   <div class="header">
     <h2>Gestión de Sucursales</h2>
     <button class="btn btn-primary" (click)="showForm ? cancelar() : nuevaSucursal()">
       {{ showForm ? 'Cancelar' : 'Nueva Sucursal' }}
     </button>
   </div>
-
   <div class="card" *ngIf="showForm">
     <h3>{{ editandoId ? 'Editar Sucursal' : 'Registrar Sucursal' }}</h3>
     <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
-
     <form [formGroup]="branchForm" (ngSubmit)="onSubmit()">
+      <!-- NUEVO (SaaS): el SUPER_ADMIN elige a qué empresa pertenece la sucursal -->
+      <div class="form-group" *ngIf="esSuperAdmin">
+        <label for="empresa">Empresa</label>
+        <select id="empresa" formControlName="id_empresa">
+          <option value="">Seleccione empresa</option>
+          <option *ngFor="let e of empresas" [value]="e.id_empresa">{{ e.nombre }}</option>
+        </select>
+      </div>
       <div class="form-group">
         <label for="ciudad">Ciudad</label>
         <select id="ciudad" formControlName="id_ciudad">
@@ -47,11 +52,11 @@
       <button type="submit" class="btn btn-success" [disabled]="branchForm.invalid">Guardar</button>
     </form>
   </div>
-
   <div class="table-container">
     <table class="table">
       <thead>
         <tr>
+          <th *ngIf="esSuperAdmin">Empresa</th>
           <th>Nombre</th>
           <th>Ciudad</th>
           <th>Dirección</th>
@@ -62,6 +67,7 @@
       </thead>
       <tbody>
         <tr *ngFor="let branch of branches">
+          <td *ngIf="esSuperAdmin">{{ branch.empresa_nombre || '-' }}</td>
           <td>{{ branch.nombre }}</td>
           <td>{{ branch.ciudad?.nombre }}</td>
           <td>{{ branch.direccion }}</td>
@@ -76,7 +82,7 @@
             <button class="btn btn-link danger" (click)="eliminarSucursal(branch)">Eliminar</button>
           </td>
         </tr>
-        <tr *ngIf="branches.length === 0"><td colspan="6">No hay sucursales registradas.</td></tr>
+        <tr *ngIf="branches.length === 0"><td [attr.colspan]="esSuperAdmin ? 7 : 6">No hay sucursales registradas.</td></tr>
       </tbody>
     </table>
   </div>

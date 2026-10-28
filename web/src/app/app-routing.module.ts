@@ -5,7 +5,7 @@
 // FIX: 'orders' y 'deliveries' estaban en el menú lateral (layout.component.html)
 // pero nunca se habían registrado aquí - la ruta no existía.
 // NUEVO (devoluciones): se agrega la ruta 'devoluciones'.
-
+// NUEVO (SaaS): se agrega la ruta 'empresas' (SUPER_ADMIN y ADMIN_EMPRESA).
 import { NgModule } from '@angular/core';
 import {
   RouterModule,
@@ -14,7 +14,6 @@ import {
 import { LayoutComponent } from './layout/layout.component';
 import { AuthGuard } from './core/auth/auth.guard';
 import { RoleGuard } from './core/auth/role.guard';
-
 const routes: Routes = [
   {
     path: 'auth',
@@ -33,6 +32,14 @@ const routes: Routes = [
         loadChildren: () =>
           import('./modules/dashboard/dashboard.module')
             .then(m => m.DashboardModule)
+      },
+      {
+        path: 'empresas',
+        canActivate: [AuthGuard, RoleGuard],
+        data: { rolesExcluidos: ['CLIENTE', 'ENCARGADO_SUCURSAL', 'CAJERO', 'REPARTIDOR'] },
+        loadChildren: () =>
+          import('./modules/empresas/empresas.module')
+            .then(m => m.EmpresasModule)
       },
       {
         path: 'catalog',
@@ -175,7 +182,6 @@ const routes: Routes = [
     redirectTo: 'auth/login'
   }
 ];
-
 @NgModule({
   imports: [
     RouterModule.forRoot(routes)

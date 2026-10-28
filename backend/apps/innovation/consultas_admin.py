@@ -1,12 +1,15 @@
 # backend/apps/innovation/consultas_admin.py
 
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import date, timedelta
 
 from django.db.models import Count, Sum
 from django.utils import timezone
 
 from apps.catalog.models import Sucursal
+from apps.users_auth.models import Empresa
 from apps.inventory.models import StockItem
 from apps.reservations.models import FittingReservation
 from apps.sales.models import Delivery, Order, OrderItem, PosSale, PosSaleItem
@@ -23,6 +26,13 @@ from .herramientas_cliente import (
 from .models import ARTryOnSession
 
 logger = logging.getLogger(__name__)
+
+# NUEVO (SaaS): empresa cuyos datos puede consultar el asistente en la
+# petición actual. None = todas (SUPER_ADMIN). Por defecto SIN_ALCANCE, que
+# no coincide con ninguna empresa: si alguien olvida fijar el alcance, la
+# consulta devuelve vacío en lugar de mezclar datos de otras empresas.
+SIN_ALCANCE = 0
+_empresa_actual = ContextVar("empresa_actual", default=SIN_ALCANCE)
 
 ESTADOS_PAGADOS = ("PAGADA", "ENVIADA", "ENTREGADA")
 MAX_FILAS = 500
@@ -75,8 +85,13 @@ ALIAS_AGRUPAR = {
     "pago": "metodo",
     "canal": "canal",
     "canales": "canal",
+    "empresa": "empresa",
+    "empresas": "empresa",
+    "tienda": "empresa",
+    "tiendas": "empresa",
 }
 GRUPOS_VENTAS = {
+    "empresa": "Empresa",
     "dia": "Día",
     "sucursal": "Sucursal",
     "metodo": "Método de pago",
@@ -166,10 +181,114 @@ def _estado(valor, catalogo):
     return None
 
 
+def empresa_del_usuario(usuario):
+    """Id de la empresa que el usuario puede consultar (None = todas, SUPER_ADMIN)."""
+    if usuario.roles.filter(nombre="SUPER_ADMIN").exists():
+        return None
+    return usuario.id_empresa_id or SIN_ALCANCE
+
+
+@contextmanager
+def en_empresa_de(usuario):
+    """Fija, mientras dure el bloque, la empresa que el asistente puede consultar."""
+    token = _empresa_actual.set(empresa_del_usuario(usuario))
+    try:
+        yield
+    finally:
+        _empresa_actual.reset(token)
+
+
+def _por_empresa(qs, campo="id_empresa"):
+    """Restringe un queryset a la empresa del alcance actual."""
+    empresa_id = _empresa_actual.get()
+    if empresa_id is None:
+        return qs
+    return qs.filter(**{campo: empresa_id})
+
+
+def _es_super_admin(usuario):
+    """True si el usuario es el operador de la plataforma (SUPER_ADMIN)."""
+    return usuario.roles.filter(nombre="SUPER_ADMIN").exists()
+
+
+def _empresas_activas():
+    """Empresas activas de la plataforma, ordenadas por nombre."""
+    return list(Empresa.objects.filter(estado="ACTIVA").order_by("nombre"))
+
+
+def contexto_plataforma(usuario):
+    """Texto que explica al asistente la plataforma, las empresas y sus sucursales.
+
+    El SUPER_ADMIN conoce todas las empresas con sus sucursales; el personal
+    de una empresa solo conoce la suya (no se le revelan las demás).
+    """
+    def _sucursales_de(empresa):
+        """Sucursales activas de una empresa, separadas por comas."""
+        nombres = Sucursal.objects.filter(id_empresa=empresa, estado="ACTIVA").order_by(
+            "nombre"
+        ).values_list("nombre", flat=True)
+        return ", ".join(nombres) or "sin sucursales"
+
+    base = (
+        "SmartLook es una PLATAFORMA SaaS (no es una tienda): varias empresas de ropa "
+        "la usan para vender, y cada empresa tiene sus propias sucursales, prendas, "
+        "stock y ventas, separados de las demás.\n"
+    )
+    if _es_super_admin(usuario):
+        lineas = [f"- {e.nombre}: {_sucursales_de(e)}" for e in _empresas_activas()]
+        return base + (
+            "Hablas con el ADMINISTRADOR DE LA PLATAFORMA: puede consultar cualquier "
+            "empresa o todas juntas. Si menciona una empresa, pásala en el parámetro "
+            "'empresa'; si no menciona ninguna, la consulta abarca todas. Para comparar "
+            "empresas usa consultar_ventas con agrupar_por='empresa'.\n"
+            "Empresas y sus sucursales:\n" + "\n".join(lineas)
+        )
+    empresa = usuario.id_empresa
+    if empresa is None:
+        return base + "El usuario no pertenece a ninguna empresa: no tiene datos que consultar."
+    return base + (
+        f"Hablas con el personal de la empresa {empresa.nombre}. Solo puedes consultar "
+        f"datos de {empresa.nombre}. Si pregunta por otra empresa o por toda la "
+        "plataforma, responde que no tiene acceso a esa información "
+        "y no reveles qué otras empresas existen.\n"
+        f"Sucursales de {empresa.nombre}: {_sucursales_de(empresa)}."
+    )
+
+
+def _resolver_empresa(valor, usuario):
+    """Devuelve (id_empresa, nombre, nota) para el parámetro 'empresa' de una consulta.
+
+    - SUPER_ADMIN: busca la empresa por nombre; si no existe, consulta todas
+      y devuelve una nota.
+    - Personal de empresa: solo puede ser su propia empresa; si pide otra,
+      devuelve una nota de acceso denegado (y la consulta queda vacía).
+    """
+    if not _norm(valor):
+        return None, None, None
+    empresas = _empresas_activas()
+    nombres = [e.nombre for e in empresas]
+    real = _resolver(valor, nombres)
+    if _es_super_admin(usuario):
+        if real is None:
+            return None, None, (
+                f"No existe la empresa «{valor}»; se muestran todas. "
+                f"Empresas: {', '.join(nombres)}."
+            )
+        empresa = next(e for e in empresas if e.nombre == real)
+        return empresa.id_empresa, empresa.nombre, None
+    propia = usuario.id_empresa
+    if propia is not None and real == propia.nombre:
+        return propia.id_empresa, propia.nombre, None
+    return SIN_ALCANCE, None, (
+        "No tienes acceso a datos de otras empresas; solo puedes consultar "
+        f"{propia.nombre if propia else 'tu empresa'}."
+    )
+
+
 def _nombres_sucursales():
-    """Nombres de las sucursales activas."""
+    """Nombres de las sucursales activas de la empresa del alcance actual."""
     return list(
-        Sucursal.objects.filter(estado="ACTIVA")
+        _por_empresa(Sucursal.objects.filter(estado="ACTIVA"))
         .order_by("nombre")
         .values_list("nombre", flat=True)
     )
@@ -178,10 +297,15 @@ def _nombres_sucursales():
 def alcance_sucursal(usuario):
     """Nombre de la única sucursal que el usuario puede consultar, o None.
 
-    Hoy ningún usuario tiene una sucursal asignada (el modelo Usuario no la
-    guarda) y el resto del sistema deja al encargado ver todas. Cuando se
-    asigne una sucursal a cada encargado, solo hay que cambiar esta función.
+    NUEVO (SaaS): un ENCARGADO_SUCURSAL con sucursal asignada solo consulta
+    esa sucursal. Administradores y encargados sin sucursal asignada ven
+    todas las sucursales de su empresa.
     """
+    roles = set(usuario.roles.values_list("nombre", flat=True))
+    if roles & {"SUPER_ADMIN", "ADMIN_EMPRESA"}:
+        return None
+    if "ENCARGADO_SUCURSAL" in roles and usuario.id_sucursal_id:
+        return usuario.id_sucursal.nombre
     return None
 
 
@@ -251,9 +375,9 @@ def _fecha_local(momento):
 # ---------------------------------------------------------------- inventario
 def _cargar_stock(sucursal):
     """Una fila por variante y sucursal, con su cantidad y su mínimo."""
-    stocks = StockItem.objects.filter(
+    stocks = _por_empresa(StockItem.objects.filter(
         estado=True, id_variante__id_producto__estado="ACTIVO"
-    ).select_related(
+    )).select_related(
         "id_sucursal",
         "id_variante__id_producto__id_categoria",
         "id_variante__id_talla",
@@ -393,7 +517,7 @@ def _cargar_ventas(rango, sucursal, canal):
     desde, hasta, _ = rango
     ventas = []
     if canal in (None, "pos"):
-        qs = PosSale.objects.select_related("id_sucursal")
+        qs = _por_empresa(PosSale.objects.select_related("id_sucursal", "id_empresa"))
         if desde:
             qs = qs.filter(fecha_venta__date__gte=desde)
         if hasta:
@@ -404,6 +528,7 @@ def _cargar_ventas(rango, sucursal, canal):
             ventas.append(
                 {
                     "canal": "Punto de venta",
+                    "empresa": v.id_empresa.nombre if v.id_empresa else "Sin empresa",
                     "fecha": _fecha_local(v.fecha_venta),
                     "sucursal": v.id_sucursal.nombre,
                     "metodo": v.metodo_pago,
@@ -411,7 +536,11 @@ def _cargar_ventas(rango, sucursal, canal):
                 }
             )
     if canal in (None, "web"):
-        qs = Order.objects.filter(estado__in=ESTADOS_PAGADOS).select_related("id_sucursal")
+        qs = _por_empresa(
+            Order.objects.filter(estado__in=ESTADOS_PAGADOS).select_related(
+                "id_sucursal", "id_empresa"
+            )
+        )
         if desde:
             qs = qs.filter(fecha_creacion__date__gte=desde)
         if hasta:
@@ -422,6 +551,7 @@ def _cargar_ventas(rango, sucursal, canal):
             ventas.append(
                 {
                     "canal": "Web / App",
+                    "empresa": o.id_empresa.nombre if o.id_empresa else "Sin empresa",
                     "fecha": _fecha_local(o.fecha_creacion),
                     "sucursal": o.id_sucursal.nombre if o.id_sucursal else "Sin sucursal",
                     "metodo": o.metodo_pago,
@@ -432,7 +562,7 @@ def _cargar_ventas(rango, sucursal, canal):
 
 
 def _armar_ventas(ventas, args, etiqueta, sucursal, canal, notas):
-    """Totales de ventas agrupados por día, sucursal, método de pago o canal."""
+    """Totales de ventas agrupados por día, sucursal, método de pago, canal o empresa."""
     agrupar = ALIAS_AGRUPAR.get(_norm(args.get("agrupar_por")), "dia")
     grupos = {}
     for v in ventas:
@@ -441,6 +571,7 @@ def _armar_ventas(ventas, args, etiqueta, sucursal, canal, notas):
             "sucursal": v["sucursal"],
             "metodo": v["metodo"],
             "canal": v["canal"],
+            "empresa": v["empresa"],
         }[agrupar]
         acumulado = grupos.setdefault(clave, [0, 0.0])
         acumulado[0] += 1
@@ -505,7 +636,9 @@ def consultar_ventas(args, usuario):
 def _cargar_entregas(rango, sucursal):
     """Entregas a domicilio del periodo, con su pedido y sucursal."""
     desde, hasta, _ = rango
-    qs = Delivery.objects.select_related("id_orden__id_sucursal")
+    qs = _por_empresa(
+        Delivery.objects.select_related("id_orden__id_sucursal"), "id_orden__id_empresa"
+    )
     if desde:
         qs = qs.filter(fecha_creacion__date__gte=desde)
     if hasta:
@@ -587,7 +720,9 @@ def consultar_entregas(args, usuario):
 def _cargar_reservas(rango, sucursal):
     """Reservas de prueba en tienda cuya fecha cae en el periodo."""
     desde, hasta, _ = rango
-    qs = FittingReservation.objects.select_related("id_sucursal").prefetch_related("items")
+    qs = _por_empresa(
+        FittingReservation.objects.select_related("id_sucursal").prefetch_related("items")
+    )
     if desde:
         qs = qs.filter(fecha_reserva__gte=desde)
     if hasta:
@@ -668,7 +803,9 @@ def _cargar_items_vendidos(rango, sucursal):
     desde, hasta, _ = rango
     filas = []
 
-    web = OrderItem.objects.filter(id_orden__estado__in=ESTADOS_PAGADOS)
+    web = _por_empresa(
+        OrderItem.objects.filter(id_orden__estado__in=ESTADOS_PAGADOS), "id_orden__id_empresa"
+    )
     if desde:
         web = web.filter(id_orden__fecha_creacion__date__gte=desde)
     if hasta:
@@ -676,7 +813,7 @@ def _cargar_items_vendidos(rango, sucursal):
     if sucursal:
         web = web.filter(id_orden__id_sucursal__nombre=sucursal)
 
-    pos = PosSaleItem.objects.all()
+    pos = _por_empresa(PosSaleItem.objects.all(), "id_venta__id_empresa")
     if desde:
         pos = pos.filter(id_venta__fecha_venta__date__gte=desde)
     if hasta:
@@ -738,7 +875,7 @@ def productos_mas_vendidos(args, usuario):
 def _cargar_pruebas(rango):
     """Pruebas en el vestidor virtual por prenda en el periodo."""
     desde, hasta, _ = rango
-    qs = ARTryOnSession.objects.all()
+    qs = _por_empresa(ARTryOnSession.objects.all(), "id_producto__id_empresa")
     if desde:
         qs = qs.filter(fecha_sesion__date__gte=desde)
     if hasta:
@@ -872,7 +1009,10 @@ HERRAMIENTAS_ADMIN = [
                 "hasta": _HASTA,
                 "sucursal": _SUCURSAL,
                 "canal": {"type": "string", "description": "pos (punto de venta) o web. Omítelo para ambos."},
-                "agrupar_por": {"type": "string", "description": "dia, sucursal, metodo o canal."},
+                "agrupar_por": {
+                    "type": "string",
+                    "description": "dia, sucursal, metodo, canal o empresa (empresa solo para el administrador de la plataforma).",
+                },
             },
         },
     },
@@ -960,6 +1100,17 @@ HERRAMIENTAS_ADMIN = [
     },
 ]
 
+# NUEVO (SaaS): todas las consultas aceptan el nombre de la empresa. Solo el
+# SUPER_ADMIN puede elegir cualquiera; al personal se le limita a la suya.
+for _herramienta in HERRAMIENTAS_ADMIN:
+    _herramienta["parameters"]["properties"]["empresa"] = {
+        "type": "string",
+        "description": (
+            "Nombre de la empresa a consultar. Solo lo usa el administrador de la "
+            "plataforma; omítelo para consultar todas (o la propia empresa)."
+        ),
+    }
+
 CONSULTAS = {
     "consultar_inventario": consultar_inventario,
     "consultar_ventas": consultar_ventas,
@@ -977,7 +1128,35 @@ def ejecutar(nombre, argumentos, usuario):
     if funcion is None:
         raise ConsultaInvalida(f"Consulta desconocida: {nombre}")
     args = argumentos if isinstance(argumentos, dict) else {}
-    return funcion(args, usuario)
+    # SaaS: toda consulta corre dentro del alcance de empresa del usuario.
+    with en_empresa_de(usuario):
+        id_empresa, nombre_empresa, nota = _resolver_empresa(args.get("empresa"), usuario)
+        if id_empresa is None:
+            resultado = funcion(args, usuario)
+        else:
+            token = _empresa_actual.set(id_empresa)
+            try:
+                resultado = funcion(args, usuario)
+            finally:
+                _empresa_actual.reset(token)
+        return _con_empresa(resultado, usuario, nombre_empresa, nota)
+
+
+def _con_empresa(resultado, usuario, nombre_empresa, nota):
+    """Agrega al subtítulo la empresa consultada y, si la hay, la nota de acceso."""
+    if nombre_empresa:
+        etiqueta = f"Empresa: {nombre_empresa}"
+    elif _es_super_admin(usuario):
+        etiqueta = "Todas las empresas"
+    elif usuario.id_empresa_id:
+        etiqueta = f"Empresa: {usuario.id_empresa.nombre}"
+    else:
+        etiqueta = None
+    if etiqueta:
+        resultado["subtitulo"] = f"{etiqueta} · {resultado['subtitulo']}"
+    if nota:
+        resultado["notas"] = [nota] + list(resultado["notas"])
+    return resultado
 
 
 def resumen_para_modelo(resultado, max_filas=12):

@@ -1,9 +1,15 @@
 <div class="reservation-container">
   <h2>Reservar Prendas</h2>
   <p class="subtitle">Elige las prendas, la sucursal y el horario en que quieres probártelas.</p>
-
+  <!-- NUEVO (A.5): aviso de reserva sin conexión -->
+  <div class="aviso-offline" *ngIf="!enLinea">
+    Sin conexión: la reserva se guardará en este dispositivo y se enviará al recuperar internet.
+    Las prendas y sucursales son las que se consultaron antes y pueden estar desactualizadas.
+  </div>
   <div *ngIf="loading">Cargando catálogo...</div>
-
+  <div *ngIf="!loading && products.length === 0 && !enLinea" class="aviso-offline">
+    No hay productos guardados en este dispositivo: abre el catálogo con conexión una vez para poder reservar sin internet.
+  </div>
   <div *ngIf="!loading" class="card">
     <h3>Agregar Prenda</h3>
     <div class="form-row">
@@ -11,7 +17,9 @@
         <label>Producto</label>
         <select [(ngModel)]="selectedProductId" (ngModelChange)="selectedVarianteId = null">
           <option [ngValue]="null">Selecciona un producto</option>
-          <option *ngFor="let p of products" [ngValue]="p.id_producto">{{ p.nombre }}</option>
+          <option *ngFor="let p of products" [ngValue]="p.id_producto">
+            {{ p.nombre }}<ng-container *ngIf="p.empresa_nombre"> ({{ p.empresa_nombre }})</ng-container>
+          </option>
         </select>
       </div>
       <div class="form-group" *ngIf="selectedProduct">
@@ -25,39 +33,38 @@
       </div>
       <button type="button" class="btn btn-secondary" (click)="addItem()">+ Agregar a la reserva</button>
     </div>
-
     <div *ngIf="items.length > 0" class="items-list">
-      <h4>Prendas en esta reserva</h4>
+      <h4>Prendas en esta reserva<ng-container *ngIf="empresaReserva?.nombre"> · {{ empresaReserva?.nombre }}</ng-container></h4>
       <div class="item-row" *ngFor="let item of items; let i = index">
         <span>{{ item.label }}</span>
         <button type="button" class="btn-link" (click)="removeItem(i)">Quitar</button>
       </div>
     </div>
-
     <h3>Datos de la Reserva</h3>
     <div class="form-row">
       <div class="form-group">
         <label>Sucursal</label>
         <select [(ngModel)]="selectedSucursalId">
           <option [ngValue]="null">Selecciona una sucursal</option>
-          <option *ngFor="let s of sucursales" [ngValue]="s.id_sucursal">{{ s.nombre }}</option>
+          <option *ngFor="let s of sucursalesDisponibles" [ngValue]="s.id_sucursal">{{ s.nombre }}</option>
         </select>
       </div>
       <div class="form-group">
         <label>Fecha</label>
-        <input type="date" [(ngModel)]="fechaReserva">
+        <input type="date" [min]="hoy" [(ngModel)]="fechaReserva">
       </div>
       <div class="form-group">
         <label>Hora</label>
         <input type="time" [(ngModel)]="horaReserva">
       </div>
     </div>
-
     <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
-    <div class="alert alert-success" *ngIf="successMessage">{{ successMessage }}</div>
-
+    <div class="alert alert-success" *ngIf="successMessage" [class.alert-offline]="guardadaSinConexion">
+      {{ successMessage }}
+      <a *ngIf="guardadaSinConexion" routerLink="/reservations">Ver mis reservas</a>
+    </div>
     <button type="button" class="btn btn-accent btn-block" [disabled]="submitting" (click)="submit()">
-      {{ submitting ? 'Enviando...' : 'Confirmar Reserva' }}
+      {{ submitting ? 'Enviando...' : (enLinea ? 'Confirmar Reserva' : 'Guardar reserva sin conexión') }}
     </button>
   </div>
 </div>

@@ -128,9 +128,11 @@ class ReservationStockService:
         CONFIRMADA por sucursal). El stock NO se toca aquí: ya se
         descontó al crear la reserva (CU11).
         """
-        from apps.sales.models import Cart, CartItem
+        from apps.sales.models import CartItem
+        from apps.sales.services import CartService
 
-        cart, _ = Cart.objects.get_or_create(id_cliente=reserva.id_cliente, estado="ACTIVO")
+        # SaaS: las prendas van al carrito de la empresa de la reserva.
+        cart = CartService.obtener_carrito(reserva.id_cliente, reserva.id_empresa)
         for item in reserva.items.filter(estado="PENDIENTE"):
             CartItem.objects.get_or_create(
                 id_carrito=cart,

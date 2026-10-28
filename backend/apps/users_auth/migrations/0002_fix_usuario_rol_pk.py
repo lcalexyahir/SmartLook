@@ -11,6 +11,12 @@
 #
 # La restricción de negocio "un usuario no puede tener el mismo rol dos
 # veces" se preserva moviéndola a un UNIQUE constraint separado.
+#
+# MODIFICADO (pruebas automáticas): solo hace el cambio si la columna "id"
+# todavía no existe. En una base nueva (por ejemplo la base de pruebas que
+# crea "python manage.py test"), 0001_initial ya crea "id" como PK y la
+# restricción UNIQUE, así que esta migración no hace nada. En las bases que
+# ya la tenían aplicada no cambia nada (Django no vuelve a ejecutarla).
 
 from django.db import migrations
 
@@ -23,12 +29,23 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunSQL(
-            sql=[
-                'ALTER TABLE usuario_rol ADD COLUMN id serial;',
-                'ALTER TABLE usuario_rol DROP CONSTRAINT usuario_rol_pkey;',
-                'ALTER TABLE usuario_rol ADD CONSTRAINT usuario_rol_pkey PRIMARY KEY (id);',
-                'ALTER TABLE usuario_rol ADD CONSTRAINT usuario_rol_id_usuario_id_rol_uniq UNIQUE (id_usuario, id_rol);',
-            ],
+            sql="""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'usuario_rol'
+                          AND column_name = 'id'
+                    ) THEN
+                        ALTER TABLE usuario_rol ADD COLUMN id serial;
+                        ALTER TABLE usuario_rol DROP CONSTRAINT usuario_rol_pkey;
+                        ALTER TABLE usuario_rol ADD CONSTRAINT usuario_rol_pkey PRIMARY KEY (id);
+                        ALTER TABLE usuario_rol ADD CONSTRAINT usuario_rol_id_usuario_id_rol_uniq
+                            UNIQUE (id_usuario, id_rol);
+                    END IF;
+                END $$;
+            """,
             reverse_sql=[
                 'ALTER TABLE usuario_rol DROP CONSTRAINT usuario_rol_id_usuario_id_rol_uniq;',
                 'ALTER TABLE usuario_rol DROP CONSTRAINT usuario_rol_pkey;',

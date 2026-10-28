@@ -1,6 +1,6 @@
 # backend/apps/reservations/models.py
 from django.db import models
-from apps.users_auth.models import Usuario, Cliente
+from apps.users_auth.models import Empresa, Usuario, Cliente
 from apps.catalog.models import Sucursal, ProductoVariante
 
 
@@ -26,13 +26,30 @@ class FittingReservation(models.Model):
         ],
     )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    # NUEVO (SaaS): empresa de la reserva (heredada de la sucursal). Las
+    # prendas de la reserva (FittingReservationItem) la heredan de aquí.
+    id_empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.RESTRICT,
+        null=True,
+        blank=True,
+        db_column="id_empresa",
+        related_name="reservas",
+    )
 
     class Meta:
         db_table = "fitting_reservation"
         verbose_name = "Reserva de Probador"
         verbose_name_plural = "Reservas de Probador"
 
+    def save(self, *args, **kwargs):
+        """Hereda la empresa de la sucursal si no se indicó una."""
+        if self.id_empresa_id is None and self.id_sucursal_id:
+            self.id_empresa_id = self.id_sucursal.id_empresa_id
+        super().save(*args, **kwargs)
+
     def __str__(self):
+        """Representación legible de la reserva."""
         return f"Reserva {self.id_reserva} - {self.id_cliente}"
 
 
@@ -71,4 +88,5 @@ class FittingReservationItem(models.Model):
         verbose_name_plural = "Prendas de Reserva"
 
     def __str__(self):
+        """Representación legible de la prenda reservada."""
         return f"Item {self.id_item} - Reserva {self.id_reserva_id}"

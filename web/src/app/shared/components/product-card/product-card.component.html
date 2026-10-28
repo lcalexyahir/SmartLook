@@ -3,9 +3,10 @@
     <img [src]="product.imagen_producto || 'assets/placeholder.png'" [alt]="product.nombre">
   </div>
   <div class="product-info">
-    <span class="product-brand">{{ product.marca?.nombre || 'SmartLook' }}</span>
+    <span class="product-brand" *ngIf="product.marca?.nombre">{{ product.marca?.nombre }}</span>
     <h4 class="product-name">{{ product.nombre }}</h4>
     <p class="product-category">{{ product.categoria?.nombre }}</p>
+    <span class="product-store" *ngIf="product.empresa_nombre">Vendido por {{ product.empresa_nombre }}</span>
     <div class="product-footer">
       <span class="product-price">{{ getPriceRange() }}</span>
       <button type="button" class="btn btn-primary" (click)="verDetalle()">Ver Detalle</button>
