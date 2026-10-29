@@ -1,3 +1,7 @@
+// mobile/lib/app.dart
+//
+// MODIFICADO (SaaS - A.2): al restaurar la sesión, la pantalla inicial sale
+// de User.rutaInicio (misma regla que el login).
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -61,21 +65,8 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // NUEVO (CU16): CAJERO ahora también va al dashboard (AdminHomeScreen,
-    // ya trae la tarjeta "Punto de Venta"), en vez de directo a /pos.
-    final esStaff = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
-    final esCajero = authService.currentUser?.hasRole('CAJERO') ?? false;
-
-    final esRepartidor = authService.currentUser?.hasRole('REPARTIDOR') ?? false;
-    if (esRepartidor && !esStaff && !esCajero) {
-      Navigator.pushReplacementNamed(context, '/entregas');
-      return;
-    }
-    if (esStaff || esCajero) {
-      Navigator.pushReplacementNamed(context, '/admin');
-    } else {
-      Navigator.pushReplacementNamed(context, '/catalog');
-    }
+    final ruta = authService.currentUser?.rutaInicio ?? '/catalog';
+    Navigator.pushReplacementNamed(context, ruta);
   }
 
   @override
@@ -86,12 +77,12 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.shopping_bag,
               size: 80,
               color: Colors.white,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
               'SmartLook',
               style: GoogleFonts.inter(
@@ -100,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: Colors.white,
               ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
               'Moda Masculina Premium',
               style: GoogleFonts.inter(

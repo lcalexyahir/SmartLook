@@ -1,4 +1,8 @@
 // mobile/lib/features/cart_checkout/presentation/cart_screen.dart
+//
+// MODIFICADO (SaaS - A.1): un carrito por tienda. Arriba, chips con cada
+// tienda y su cantidad de prendas; se paga un carrito a la vez y solo se
+// ofrecen las sucursales de la tienda elegida.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart'
@@ -41,6 +45,9 @@ class _CartScreenState extends State<CartScreen> {
   // Santa Cruz de la Sierra: centro del mapa cuando aún no hay sucursal ni punto.
   static const LatLng _centroDefecto = LatLng(-17.7834, -63.1821);
 
+  // SaaS: carritos activos (uno por tienda) y la tienda elegida.
+  List<Map<String, dynamic>> _carritos = [];
+  int? _empresaSeleccionada;
   Map<String, dynamic>? _carrito;
   bool _loading = true;
 
@@ -85,11 +92,16 @@ class _CartScreenState extends State<CartScreen> {
 
   // ---- Datos derivados ----
 
+  /// Sucursales de la tienda del carrito elegido.
+  List<dynamic> get _sucursalesTienda => _sucursales
+      .where((s) => s['id_empresa'] == _empresaSeleccionada)
+      .toList();
+
   LatLng? get _puntoCliente =>
       (_lat != null && _lng != null) ? LatLng(_lat!, _lng!) : null;
 
   LatLng? get _puntoSucursal {
-    for (final s in _sucursales) {
+    for (final s in _sucursalesTienda) {
       if (s['id_sucursal'] == _sucursalSeleccionada) {
         final lat = double.tryParse('${s['latitud']}');
         final lng = double.tryParse('${s['longitud']}');
@@ -107,21 +119,38 @@ class _CartScreenState extends State<CartScreen> {
 
   double get _totalAPagar => _totalProductos + _costoEnvio;
 
+  bool get _pagoEnCurso => _mostrarFormularioPago || _iniciandoPago || _confirmandoPago;
+
+  int _prendasDe(Map<String, dynamic> carrito) {
+    final items = (carrito['items'] ?? []) as List<dynamic>;
+    return items.fold<int>(0, (suma, i) => suma + ((i['cantidad'] ?? 0) as int));
+  }
+
   // ---- Carga ----
 
   Future<void> _cargar() async {
     // El spinner solo aparece la primera vez, para no destruir el mapa al cambiar cantidades.
-    setState(() => _loading = _carrito == null);
+    setState(() => _loading = _carrito == null && _carritos.isEmpty);
     try {
-      final carrito = await _cartService.getCarritoActual();
+      final carritos = await _cartService.getCarritosActivos();
       if (!mounted) return;
+      Map<String, dynamic>? elegido;
+      for (final c in carritos) {
+        if (c['id_empresa'] == _empresaSeleccionada) elegido = c;
+      }
+      final cambioTienda = elegido == null;
+      elegido ??= carritos.isNotEmpty ? carritos.first : null;
       setState(() {
-        _carrito = carrito;
+        _carritos = carritos;
+        _carrito = elegido;
+        _empresaSeleccionada = elegido?['id_empresa'] as int?;
         _loading = false;
+        if (cambioTienda) _limpiarCheckout();
       });
-      final items = (carrito['items'] ?? []) as List<dynamic>;
+      final items = (elegido?['items'] ?? []) as List<dynamic>;
       // Si cambió la cantidad de prendas, el costo de envío también puede cambiar.
-      if (_tipoEntrega == 'DELIVERY' &&
+      if (!cambioTienda &&
+          _tipoEntrega == 'DELIVERY' &&
           _lat != null &&
           _ordenConfirmada == null &&
           items.isNotEmpty) {
@@ -142,6 +171,27 @@ class _CartScreenState extends State<CartScreen> {
       if (!mounted) return;
       setState(() => _sucursales = []);
     }
+  }
+
+  /// Cambia de tienda: cada carrito tiene su propia sucursal y entrega.
+  void _onCambioTienda(int idEmpresa) {
+    if (idEmpresa == _empresaSeleccionada || _pagoEnCurso) return;
+    Map<String, dynamic>? elegido;
+    for (final c in _carritos) {
+      if (c['id_empresa'] == idEmpresa) elegido = c;
+    }
+    setState(() {
+      _empresaSeleccionada = idEmpresa;
+      _carrito = elegido;
+      _limpiarCheckout();
+    });
+  }
+
+  /// Deja sin sucursal, entrega ni cotización (al cambiar de tienda).
+  void _limpiarCheckout() {
+    _sucursalSeleccionada = null;
+    _errorPago = null;
+    _reiniciarEntrega();
   }
 
   Future<void> _incrementar(Map<String, dynamic> item) async {
@@ -168,6 +218,7 @@ class _CartScreenState extends State<CartScreen> {
     try {
       final data = (e as dynamic).response?.data;
       if (data is Map && data['error'] != null) return data['error'].toString();
+      if (data is Map && data['detail'] != null) return data['detail'].toString();
     } catch (_) {}
     return fallback;
   }
@@ -311,6 +362,9 @@ class _CartScreenState extends State<CartScreen> {
     _lat = null;
     _lng = null;
     _cotizacion = null;
+    _cotizacionId++;
+    _geocodificacionId++;
+    _cotizando = false;
     _direccionCtrl.clear();
     _referenciaCtrl.clear();
   }
@@ -392,6 +446,8 @@ class _CartScreenState extends State<CartScreen> {
         _ordenConfirmada = orden;
         _mostrarFormularioPago = false;
         _confirmandoPago = false;
+        _clientSecret = null;
+        _tarjetaCompleta = false;
       });
       _cargar();
     } on StripeException catch (e) {
@@ -432,7 +488,16 @@ class _CartScreenState extends State<CartScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : items.isEmpty
-              ? const Center(child: Text('Tu carrito está vacío.'))
+              ? RefreshIndicator(
+                  onRefresh: _cargar,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 200),
+                      Center(child: Text('Tu carrito está vacío.')),
+                    ],
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: _cargar,
                   child: SingleChildScrollView(
@@ -441,6 +506,8 @@ class _CartScreenState extends State<CartScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        _chipsTiendas(),
+                        const SizedBox(height: 12),
                         for (final item in items) _tarjetaItem(item as Map<String, dynamic>),
                         const SizedBox(height: 8),
                         _resumen(),
@@ -466,10 +533,42 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  /// NUEVO (SaaS - A.1): una chip por tienda con su cantidad de prendas.
+  Widget _chipsTiendas() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _carritos.map((c) {
+        final idEmpresa = c['id_empresa'] as int?;
+        final seleccionada = idEmpresa == _empresaSeleccionada;
+        return ChoiceChip(
+          avatar: Icon(
+            Icons.storefront,
+            size: 18,
+            color: seleccionada ? AppColors.white : AppColors.dark,
+          ),
+          label: Text('${c['empresa_nombre'] ?? ''} (${_prendasDe(c)})'),
+          selected: seleccionada,
+          selectedColor: AppColors.accent,
+          showCheckmark: false,
+          labelStyle: TextStyle(
+            color: seleccionada ? AppColors.white : AppColors.dark,
+            fontWeight: FontWeight.w600,
+          ),
+          onSelected: (idEmpresa == null || _pagoEnCurso)
+              ? null
+              : (_) => _onCambioTienda(idEmpresa),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _pantallaConfirmacion() {
     final orden = _ordenConfirmada!;
     final esDelivery = orden['tipo_entrega'] == 'DELIVERY';
     final delivery = orden['delivery'] as Map?;
+    final empresa = orden['empresa_nombre']?.toString() ?? '';
+    final quedan = _carritos.isNotEmpty;
     return Scaffold(
       appBar: AppBar(title: const Text('Mi Carrito')),
       body: Padding(
@@ -482,6 +581,10 @@ class _CartScreenState extends State<CartScreen> {
             const Text('¡Compra realizada con éxito!',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
+            if (empresa.isNotEmpty) ...[
+              Text('Tienda: $empresa', textAlign: TextAlign.center),
+              const SizedBox(height: 4),
+            ],
             Text('Orden #${orden['id_orden']} - Total Bs ${orden['total']}'),
             const SizedBox(height: 4),
             if (esDelivery)
@@ -498,9 +601,9 @@ class _CartScreenState extends State<CartScreen> {
             ElevatedButton(
               onPressed: () => setState(() {
                 _ordenConfirmada = null;
-                _reiniciarEntrega();
+                _limpiarCheckout();
               }),
-              child: const Text('Seguir comprando'),
+              child: Text(quedan ? 'Ver mis otros carritos' : 'Seguir comprando'),
             ),
           ],
         ),
@@ -532,12 +635,12 @@ class _CartScreenState extends State<CartScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.remove_circle_outline),
-              onPressed: () => _decrementar(item),
+              onPressed: _pagoEnCurso ? null : () => _decrementar(item),
             ),
             Text('${item['cantidad']}'),
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
-              onPressed: () => _incrementar(item),
+              onPressed: _pagoEnCurso ? null : () => _incrementar(item),
             ),
             const SizedBox(width: 8),
             Text(
@@ -546,7 +649,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.close, color: AppColors.danger),
-              onPressed: () => _quitar(item),
+              onPressed: _pagoEnCurso ? null : () => _quitar(item),
             ),
           ],
         ),
@@ -598,6 +701,7 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _seccionEntrega() {
     final esDelivery = _tipoEntrega == 'DELIVERY';
+    final sucursales = _sucursalesTienda;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -619,12 +723,16 @@ class _CartScreenState extends State<CartScreen> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<int>(
-          value: _sucursalSeleccionada,
+          // La key fuerza a reconstruir el campo al cambiar de tienda.
+          key: ValueKey('sucursal-$_empresaSeleccionada'),
+          value: sucursales.any((s) => s['id_sucursal'] == _sucursalSeleccionada)
+              ? _sucursalSeleccionada
+              : null,
           decoration: InputDecoration(
             labelText: esDelivery ? 'Sucursal que despacha tu pedido' : 'Sucursal de retiro',
             border: const OutlineInputBorder(),
           ),
-          items: _sucursales
+          items: sucursales
               .map((s) => DropdownMenuItem<int>(
                     value: s['id_sucursal'] as int,
                     child: Text(s['nombre'].toString()),

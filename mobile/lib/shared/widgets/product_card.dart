@@ -1,3 +1,7 @@
+// mobile/lib/shared/widgets/product_card.dart
+//
+// MODIFICADO (SaaS - A.1): muestra "Vendido por <empresa>" en el catálogo
+// unificado.
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/models/product_model.dart';
@@ -24,6 +28,7 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final empresa = product.empresaNombre ?? '';
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -31,9 +36,7 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // MODIFICADO: antes tenía altura fija (180) y podía desbordar
-            // la celda del grid según el ancho de pantalla. Ahora ocupa
-            // el espacio que sobra después del bloque de texto de abajo,
+            // La imagen ocupa el espacio que sobra después del texto,
             // así nunca desborda sin importar el childAspectRatio del grid.
             Expanded(
               child: ClipRRect(
@@ -101,6 +104,27 @@ class ProductCard extends StatelessWidget {
                       color: AppColors.grey,
                     ),
                   ),
+                  // NUEVO (SaaS - A.1): tienda que vende la prenda.
+                  if (empresa.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.storefront, size: 13, color: AppColors.grey),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Vendido por $empresa',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.dark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     getPriceRange(),

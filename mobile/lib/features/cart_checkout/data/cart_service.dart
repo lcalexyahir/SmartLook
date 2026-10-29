@@ -1,4 +1,9 @@
 // mobile/lib/features/cart_checkout/data/cart_service.dart
+//
+// MODIFICADO (SaaS - A.1): el cliente tiene un carrito por tienda (empresa).
+// getCarritosActivos() devuelve los carritos con prendas, cada uno con
+// id_empresa y empresa_nombre. El checkout y la cotización usan la empresa
+// dueña de la sucursal elegida (lo resuelve el backend).
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 
@@ -6,11 +11,24 @@ class CartService {
   final ApiClient apiClient;
   CartService({required this.apiClient});
 
-  Future<Map<String, dynamic>> getCarritoActual() async {
-    final response = await apiClient.dio.get('/sales/carritos/actual/');
+  /// NUEVO (SaaS): carritos activos con prendas, uno por tienda.
+  Future<List<Map<String, dynamic>>> getCarritosActivos() async {
+    final response = await apiClient.dio.get('/sales/carritos/activos/');
+    final data = response.data;
+    final lista = (data is Map ? (data['results'] ?? []) : data) as List<dynamic>;
+    return lista.map((c) => Map<String, dynamic>.from(c as Map)).toList();
+  }
+
+  /// Carrito activo. Con [idEmpresa] devuelve el de esa tienda.
+  Future<Map<String, dynamic>> getCarritoActual({int? idEmpresa}) async {
+    final response = await apiClient.dio.get(
+      '/sales/carritos/actual/',
+      queryParameters: idEmpresa != null ? {'id_empresa': idEmpresa} : null,
+    );
     return response.data as Map<String, dynamic>;
   }
 
+  /// Agrega la prenda; el backend la pone en el carrito de su tienda.
   Future<void> agregarItem(int idVariante, {int cantidad = 1}) async {
     await apiClient.dio.post(
       '/sales/carrito-items/',
@@ -29,13 +47,14 @@ class CartService {
     await apiClient.dio.delete('/sales/carrito-items/$idItem/');
   }
 
+  /// Sucursales de todas las tiendas activas; el carrito las filtra por id_empresa.
   Future<List<dynamic>> getSucursales() async {
     final response = await apiClient.dio.get('/catalog/sucursales/');
     final data = response.data;
     return (data['results'] ?? data) as List<dynamic>;
   }
 
-  /// CU21: cotiza el envío a domicilio del carrito actual.
+  /// CU21: cotiza el envío del carrito de la tienda dueña de la sucursal.
   /// Devuelve {distancia_km, costo_envio, subtotal_productos, total, fuente_distancia}.
   Future<Map<String, dynamic>> cotizarEnvio({
     required int idSucursal,

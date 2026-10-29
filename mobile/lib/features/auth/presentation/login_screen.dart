@@ -1,3 +1,8 @@
+// mobile/lib/features/auth/presentation/login_screen.dart
+//
+// MODIFICADO (SaaS - A.2): la pantalla inicial sale de User.rutaInicio
+// (misma regla que la web): SUPER_ADMIN, ADMIN_EMPRESA, ENCARGADO_SUCURSAL
+// y CAJERO van al panel; solo REPARTIDOR va a Entregas; el resto al catálogo.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -39,21 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      // NUEVO (CU16): CAJERO también va al dashboard (AdminHomeScreen,
-      // ya trae la tarjeta "Punto de Venta"). Antes solo distinguía
-      // SUPER_ADMIN y mandaba cualquier otro rol a '/catalog'.
-      final esSuperAdmin = authService.currentUser?.hasRole('SUPER_ADMIN') ?? false;
-      final esCajero = authService.currentUser?.hasRole('CAJERO') ?? false;
-
-      final esRepartidor = authService.currentUser?.hasRole('REPARTIDOR') ?? false;
-
-      if (esRepartidor && !esSuperAdmin && !esCajero) {
-        Navigator.pushReplacementNamed(context, '/entregas');
-      } else if (esSuperAdmin || esCajero) {
-        Navigator.pushReplacementNamed(context, '/admin');
-      } else {
-        Navigator.pushReplacementNamed(context, '/catalog');
-      }
+      final ruta = authService.currentUser?.rutaInicio ?? '/catalog';
+      Navigator.pushReplacementNamed(context, ruta);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

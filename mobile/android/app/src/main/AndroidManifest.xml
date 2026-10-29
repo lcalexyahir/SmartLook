@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
-        android:label="smartlook_mobile"
+        android:label="SmartLook"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

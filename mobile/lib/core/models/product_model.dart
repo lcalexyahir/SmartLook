@@ -1,5 +1,13 @@
+// mobile/lib/core/models/product_model.dart
+//
+// MODIFICADO (SaaS - A.1): Product guarda la tienda (empresa) dueña de la
+// prenda (id_empresa, empresa_nombre) para mostrar "Vendido por <empresa>".
+
 class Product {
   final int idProducto;
+  // NUEVO (SaaS): tienda (empresa) dueña del producto.
+  final int? idEmpresa;
+  final String? empresaNombre;
   final Category? categoria;
   final Brand? marca;
   final Season? temporada;
@@ -15,6 +23,8 @@ class Product {
 
   Product({
     required this.idProducto,
+    this.idEmpresa,
+    this.empresaNombre,
     this.categoria,
     this.marca,
     this.temporada,
@@ -32,6 +42,8 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       idProducto: json['id_producto'] ?? 0,
+      idEmpresa: json['id_empresa'] as int?,
+      empresaNombre: json['empresa_nombre'] as String?,
       categoria: json['categoria'] != null
           ? Category.fromJson(json['categoria'])
           : null,

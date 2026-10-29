@@ -1,11 +1,10 @@
 // mobile/lib/core/services/auth_service.dart
 //
-// Archivo YA EXISTENTE. Cambios:
-// - login() ahora también guarda el JSON del usuario en storage seguro
-//   (antes solo guardaba los tokens).
-// - Se agrega intentarRestaurarSesion(), llamado al abrir la app.
-// - logout() ahora usa clearToken() (que ya borra todo: tokens + usuario).
-// register() y _handleError() quedan igual.
+// - login() guarda el JSON del usuario en storage seguro (además de los tokens).
+// - intentarRestaurarSesion(), llamado al abrir la app.
+// - logout() usa clearToken() (borra tokens + usuario).
+// - actualizarDatosLocales() mantiene al día el usuario en memoria y en
+//   storage después de editar el perfil (conserva empresa y sucursal).
 
 import 'dart:convert';
 import 'package:dio/dio.dart';
@@ -78,7 +77,7 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await apiClient.dio.post(
+      await apiClient.dio.post(
         '/auth/registro/',
         data: {
           'nombres': nombres,
@@ -119,11 +118,39 @@ class AuthService extends ChangeNotifier {
       return true;
     } catch (_) {
       // Datos guardados corruptos o en formato viejo: se limpia todo
-      // y se obliga a loguear de nuevo, en vez de dejar la app en un
-      // estado inconsistente.
+      // y se obliga a loguear de nuevo.
       await apiClient.clearToken();
       return false;
     }
+  }
+
+  /// Actualiza nombres, apellidos y teléfono del usuario de la sesión
+  /// (memoria y storage) después de guardar el perfil.
+  Future<void> actualizarDatosLocales({
+    required String nombres,
+    required String apellidos,
+    String? telefono,
+  }) async {
+    final actual = _currentUser;
+    if (actual == null) return;
+    _currentUser = actual.copyWith(
+      nombres: nombres,
+      apellidos: apellidos,
+      telefono: telefono,
+    );
+    try {
+      final guardado = await apiClient.getUser();
+      if (guardado != null) {
+        final mapa = Map<String, dynamic>.from(jsonDecode(guardado) as Map);
+        mapa['nombres'] = nombres;
+        mapa['apellidos'] = apellidos;
+        mapa['telefono'] = telefono;
+        await apiClient.saveUser(jsonEncode(mapa));
+      }
+    } catch (_) {
+      // Si lo guardado no es válido, se corrige en el próximo inicio de sesión.
+    }
+    notifyListeners();
   }
 
   Future<void> logout() async {

@@ -1,4 +1,7 @@
 // mobile/lib/features/deliveries/presentation/deliveries_screen.dart
+//
+// MODIFICADO (SaaS - A.2): cuando es la pantalla inicial del repartidor,
+// muestra arriba su empresa (y sucursal) con EmpresaBanner.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -7,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/empresa_banner.dart';
 
 class DeliveriesScreen extends StatefulWidget {
   /// true cuando es la pantalla inicial del repartidor (sin botón de volver
@@ -211,6 +215,8 @@ class _DeliveriesScreenState extends State<DeliveriesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final usuario = context.watch<AuthService>().currentUser;
+    final mostrarEmpresa = widget.esInicio && usuario?.empresaNombre != null;
     return Scaffold(
       appBar: AppBar(
         title: Text(_esGestor ? 'Entregas' : 'Mis entregas'),
@@ -226,6 +232,13 @@ class _DeliveriesScreenState extends State<DeliveriesScreen> {
       ),
       body: Column(
         children: [
+          // NUEVO (SaaS - A.2): empresa del repartidor.
+          if (mostrarEmpresa)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: const EmpresaBanner(),
+            ),
           SizedBox(
             height: 56,
             child: ListView(

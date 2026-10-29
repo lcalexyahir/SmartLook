@@ -1,15 +1,26 @@
 // mobile/lib/features/catalog/presentation/product_detail_screen.dart
+//
+// MODIFICADO (SaaS - A.1): "Vendido por <empresa>" y aviso del carrito de
+// la tienda a la que se agregó la prenda.
+// MODIFICADO (SaaS - 6.2): consultable sin conexión. El producto sale de la
+// copia local y la disponibilidad por sucursal de la última consulta
+// guardada, avisando que puede estar desactualizada.
+// Del modelo solo se importan Product y ProductVariant: sus clases Color/Size
+// chocan con las de Flutter.
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../core/models/product_model.dart';
+import '../../../core/models/product_model.dart' show Product, ProductVariant;
 import '../../../core/network/api_client.dart';
+import '../../../core/offline/cache_local.dart';
+import '../../../core/offline/conexion.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/loading_overlay.dart';
-import '../data/repositories/catalog_repository_impl.dart';
-import '../data/sources/catalog_remote_source.dart';
 import '../../cart_checkout/data/cart_service.dart';
+import '../../reservations/data/reserva_offline_service.dart';
 import '../../virtual_tryon/presentation/ar_tryon_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -22,79 +33,82 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  late final CatalogRepositoryImpl _catalogRepository;
+  late final ReservaOfflineService _offline;
   Product? _product;
   ProductVariant? _selectedVariant;
   bool _isLoading = false;
+  // NUEVO (6.2): el producto o la disponibilidad salen de la copia local.
+  bool _usandoCopia = false;
+  DateTime? _fechaStockCopia;
 
-  // ===== NUEVO: CU08 - Disponibilidad por Sucursal =====
+  // CU08 - Disponibilidad por Sucursal
   List<dynamic> _stockPorSucursal = [];
   bool _loadingStock = false;
   late final CartService _cartService;
   bool _addingToCart = false;
   String _cartMessage = '';
-  // ===== FIN NUEVO =====
+  bool _cartError = false;
 
   @override
   void initState() {
     super.initState();
     final apiClient = context.read<ApiClient>();
-    _catalogRepository = CatalogRepositoryImpl(
-      remoteSource: CatalogRemoteSource(apiClient: apiClient),
-    );
     _cartService = CartService(apiClient: apiClient);
+    _offline = context.read<ReservaOfflineService>();
     _loadProduct();
   }
+
+  int get _idUsuario => context.read<AuthService>().currentUser?.idUsuario ?? 0;
 
   Future<void> _loadProduct() async {
     setState(() {
       _isLoading = true;
     });
+    Product? producto;
+    var desdeCopia = false;
     try {
-      final entity = await _catalogRepository.getProduct(widget.productId);
-      final product = entity.toModel();
-      // Recargar con datos completos
-      final apiClient = context.read<ApiClient>();
-      final response = await apiClient.dio.get('/catalog/productos/${widget.productId}/');
-      final fullProduct = Product.fromJson(response.data);
-      if (mounted) {
-        setState(() {
-          _product = fullProduct;
-          if (fullProduct.variantes.isNotEmpty) {
-            _selectedVariant = fullProduct.variantes.first;
-          }
-          _isLoading = false;
-        });
-        // CU08: cargar disponibilidad de la variante auto-seleccionada
-        if (_selectedVariant != null) {
-          _loadDisponibilidad(_selectedVariant!.idVariante);
-        }
-      }
+      final response = await context.read<ApiClient>().dio.get('/catalog/productos/${widget.productId}/');
+      producto = Product.fromJson(response.data);
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (esErrorDeRed(e)) {
+        _offline.marcarSinConexion();
+        final locales = await _offline.productosLocales();
+        for (final p in locales) {
+          if (p['id_producto'] == widget.productId) producto = Product.fromJson(p);
+        }
+        desdeCopia = producto != null;
       }
+    }
+    if (!mounted) return;
+    setState(() {
+      _product = producto;
+      _usandoCopia = desdeCopia;
+      if (producto != null && producto.variantes.isNotEmpty) {
+        _selectedVariant = producto.variantes.first;
+      }
+      _isLoading = false;
+    });
+    if (_selectedVariant != null) {
+      _loadDisponibilidad(_selectedVariant!.idVariante);
     }
   }
 
-  // ===== NUEVO: CU08 - Disponibilidad por Sucursal =====
+  // CU08 - Disponibilidad por Sucursal (con copia local para consultarla sin conexión)
   Future<void> _loadDisponibilidad(int varianteId) async {
     setState(() {
       _loadingStock = true;
       _stockPorSucursal = [];
+      _fechaStockCopia = null;
     });
+    final clave = 'stock_variante_$varianteId';
     try {
-      final apiClient = context.read<ApiClient>();
-      final response = await apiClient.dio.get(
+      final response = await context.read<ApiClient>().dio.get(
         '/inventory/stock/',
         queryParameters: {'variante': varianteId},
       );
       final data = response.data;
-      // La API pagina las listas ({count, next, previous, results}) -
-      // mismo patrón que ya usa InventoryService en features/admin.
       final results = (data['results'] ?? data) as List<dynamic>;
+      CacheLocal.guardar(_idUsuario, clave, results);
       if (mounted) {
         setState(() {
           _stockPorSucursal = results;
@@ -102,6 +116,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         });
       }
     } catch (e) {
+      if (esErrorDeRed(e)) {
+        final copia = await CacheLocal.leer(_idUsuario, clave);
+        if (mounted && copia != null) {
+          setState(() {
+            _stockPorSucursal = copia.$1 as List<dynamic>;
+            _fechaStockCopia = copia.$2;
+          });
+        }
+      }
       if (mounted) {
         setState(() {
           _loadingStock = false;
@@ -109,7 +132,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
     }
   }
-  // ===== FIN NUEVO =====
 
   void _onVariantSelected(ProductVariant variant) {
     setState(() {
@@ -118,8 +140,49 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _loadDisponibilidad(variant.idVariante);
   }
 
+  Future<void> _agregarAlCarrito() async {
+    setState(() {
+      _addingToCart = true;
+      _cartMessage = '';
+      _cartError = false;
+    });
+    try {
+      await _cartService.agregarItem(_selectedVariant!.idVariante);
+      if (!mounted) return;
+      final empresa = _product?.empresaNombre ?? '';
+      setState(() {
+        _addingToCart = false;
+        _cartMessage = empresa.isNotEmpty
+            ? 'Agregado al carrito de $empresa.'
+            : 'Agregado al carrito.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _addingToCart = false;
+        _cartError = true;
+        _cartMessage = 'No se pudo agregar al carrito.';
+      });
+    }
+  }
+
+  Widget _aviso(String texto) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(texto, style: const TextStyle(fontSize: 12, color: Color(0xFF8A4B00))),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final fmt = DateFormat('dd/MM/yyyy HH:mm');
+    final fechaCatalogo = _offline.fechaCatalogo;
     return Scaffold(
       appBar: AppBar(
         title: Text(_product?.nombre ?? 'Detalle de Producto'),
@@ -132,12 +195,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Imagen
-                    // MODIFICADO (CU17 - prep): antes usaba siempre
-                    // _product!.imagenProducto, sin importar la variante
-                    // seleccionada. Ahora prioriza imagenVariante de la
-                    // variante activa, con fallback a la foto general del
-                    // producto - mismo criterio que ya se aplicó en la web.
+                    // Imagen: prioriza la de la variante activa, con fallback
+                    // a la foto general del producto.
                     Container(
                       height: 350,
                       width: double.infinity,
@@ -166,6 +225,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (_usandoCopia)
+                            _aviso(
+                              fechaCatalogo != null
+                                  ? 'Sin conexión: estás viendo información guardada en este dispositivo el '
+                                      '${fmt.format(fechaCatalogo.toLocal())}. '
+                                      'Precios y disponibilidad pueden estar desactualizados.'
+                                  : 'Sin conexión: puedes consultar lo que ya se descargó y registrar ventas o reservas; '
+                                      'se enviarán al recuperar internet.',
+                            ),
                           Text(
                             _product!.marca?.nombre ?? 'SmartLook',
                             style: const TextStyle(
@@ -191,6 +259,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               color: AppColors.grey,
                             ),
                           ),
+                          // Tienda que vende la prenda.
+                          if ((_product!.empresaNombre ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.storefront, size: 16, color: AppColors.grey),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Vendido por ${_product!.empresaNombre}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.dark,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 16),
                           if (_product!.descripcion != null)
                             Text(
@@ -282,7 +370,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               }).toList(),
                             ),
                           ],
-                          // ===== NUEVO: CU17 - Botón del Vestidor Virtual =====
+                          // CU17 - Botón del Vestidor Virtual
                           if (_selectedVariant != null) ...[
                             const SizedBox(height: 16),
                             OutlinedButton.icon(
@@ -303,8 +391,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               label: const Text('Probar en Vestidor Virtual (AR)'),
                             ),
                           ],
-                          // ===== FIN NUEVO =====
-                          // ===== NUEVO: CU08 - Disponibilidad por Sucursal =====
+                          // CU08 - Disponibilidad por Sucursal
                           if (_selectedVariant != null) ...[
                             const SizedBox(height: 24),
                             const Text(
@@ -315,6 +402,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            if (_fechaStockCopia != null)
+                              _aviso(
+                                'Sin conexión: estás viendo información guardada en este dispositivo el '
+                                '${fmt.format(_fechaStockCopia!.toLocal())}. '
+                                'Precios y disponibilidad pueden estar desactualizados.',
+                              ),
                             if (_loadingStock)
                               const Center(child: CircularProgressIndicator())
                             else if (_stockPorSucursal.isEmpty)
@@ -380,7 +473,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 }).toList(),
                               ),
                           ],
-                          // ===== FIN NUEVO =====
                           const SizedBox(height: 24),
                           // Precio
                           if (_selectedVariant != null) ...[
@@ -416,24 +508,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: (_selectedVariant!.cantidad > 0 && !_addingToCart)
-                                  ? () async {
-                                      setState(() {
-                                        _addingToCart = true;
-                                        _cartMessage = '';
-                                      });
-                                      try {
-                                        await _cartService.agregarItem(_selectedVariant!.idVariante);
-                                        setState(() {
-                                          _addingToCart = false;
-                                          _cartMessage = 'Agregado al carrito.';
-                                        });
-                                      } catch (e) {
-                                        setState(() {
-                                          _addingToCart = false;
-                                          _cartMessage = 'No se pudo agregar al carrito.';
-                                        });
-                                      }
-                                    }
+                                  ? _agregarAlCarrito
                                   : null,
                               style: ElevatedButton.styleFrom(
                                 minimumSize: const ui.Size(double.infinity, 50),
@@ -442,7 +517,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                             if (_cartMessage.isNotEmpty) ...[
                               const SizedBox(height: 8),
-                              Text(_cartMessage, style: const TextStyle(color: AppColors.success)),
+                              Text(
+                                _cartMessage,
+                                style: TextStyle(
+                                  color: _cartError ? AppColors.danger : AppColors.success,
+                                ),
+                              ),
                             ],
                           ],
                         ],

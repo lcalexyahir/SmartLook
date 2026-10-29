@@ -1,13 +1,16 @@
 // mobile/lib/features/client/presentation/client_home_screen.dart
 //
-// MODIFICADO (CU18/CU19): se agrega el globo de chat del asistente virtual,
-// visible solo en la pestaña Catálogo (índice 0).
+// MODIFICADO (CU18/CU19): globo de chat del asistente virtual, visible solo
+// en la pestaña Catálogo (índice 0).
+// MODIFICADO (perfil): la pestaña Perfil muestra la pantalla real; se
+// recarga al abrirla para que el historial incluya las compras nuevas.
 import 'package:flutter/material.dart';
 import '../../ai_assistant/presentation/chat_bubble_fab.dart';
 import '../../catalog/presentation/product_list_screen.dart';
 import '../../reservations/presentation/reservation_status_screen.dart';
 import '../../orders/presentation/orders_screen.dart';
 import '../../../shared/theme/app_colors.dart';
+import 'profile_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -17,14 +20,33 @@ class ClientHomeScreen extends StatefulWidget {
 }
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
-  int _indiceActual = 0;
+  static const int _indicePedidos = 2;
+  static const int _indicePerfil = 3;
 
-  final List<Widget> _pantallas = const [
-    ProductListScreen(),
-    ReservationStatusScreen(),
-    OrdersScreen(),
-    _SeccionProximamente(titulo: 'Perfil', icono: Icons.person_outline),
-  ];
+  int _indiceActual = 0;
+  final GlobalKey<ProfileScreenState> _perfilKey = GlobalKey<ProfileScreenState>();
+  late final List<Widget> _pantallas;
+
+  @override
+  void initState() {
+    super.initState();
+    _pantallas = [
+      const ProductListScreen(),
+      const ReservationStatusScreen(),
+      const OrdersScreen(),
+      ProfileScreen(
+        key: _perfilKey,
+        onVerPedidos: () => _irA(_indicePedidos),
+      ),
+    ];
+  }
+
+  void _irA(int index) {
+    setState(() => _indiceActual = index);
+    if (index == _indicePerfil) {
+      _perfilKey.currentState?.recargar();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +60,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         currentIndex: _indiceActual,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey,
-        onTap: (index) => setState(() => _indiceActual = index),
+        onTap: _irA,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.checkroom_outlined),
@@ -57,33 +79,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             label: 'Perfil',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SeccionProximamente extends StatelessWidget {
-  final String titulo;
-  final IconData icono;
-
-  const _SeccionProximamente({required this.titulo, required this.icono});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icono, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(
-              '$titulo: próximamente',
-              style: const TextStyle(color: Colors.grey, fontSize: 15),
-            ),
-          ],
-        ),
       ),
     );
   }
