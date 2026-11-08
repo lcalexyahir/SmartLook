@@ -1,11 +1,13 @@
 # backend/apps/innovation/views_chatbot.py
 #
 # NUEVO (CU18/CU19): endpoints del asistente virtual para el cliente.
-#   POST /api/innovation/chatbot/            {"mensaje": "..."}
+#   POST /api/innovation/chatbot/            {"mensaje": "...", "historial": [...]}
 #   GET  /api/innovation/chatbot/historial/  últimos mensajes del cliente
 #
 # Solo el rol CLIENTE. El cliente se toma siempre del usuario autenticado
 # (JWT): ningún dato del cuerpo de la petición decide de quién son los datos.
+# MODIFICADO (chat por sesión): "historial" son los últimos intercambios de la
+# conversación abierta en la app/web; el asistente solo usa eso como contexto.
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -44,7 +46,7 @@ class ChatbotView(APIView):
             mensaje = ""
 
         try:
-            resultado = responder_cliente(cliente, mensaje)
+            resultado = responder_cliente(cliente, mensaje, datos.get("historial"))
         except MensajeInvalido as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except ServicioIANoDisponible as exc:

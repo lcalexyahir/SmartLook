@@ -2,10 +2,15 @@
 //
 // CU18/CU19: panel del asistente virtual del cliente. Se abre como hoja
 // inferior desde el globo de chat del catálogo (ChatBubbleFab).
+// MODIFICADO (chat por sesión): la conversación se guarda en memoria mientras
+// la app está abierta (sigue al cerrar y volver a abrir el panel) y se borra
+// al cerrar la app o al cambiar de usuario. Ya no se carga el historial
+// guardado en el servidor.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../catalog/presentation/product_detail_screen.dart';
 import '../services/ai_service.dart';
@@ -52,18 +57,30 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
     '¿En qué estado está mi último pedido?',
   ];
 
+  // NUEVO: conversación de la sesión de la app (memoria, no se guarda en el
+  // teléfono) y el usuario al que pertenece.
+  static final List<_Mensaje> _mensajes = [];
+  static int? _duenoConversacion;
+  static const int _intercambiosContexto = 4;
+
   late final AiService _servicio;
   final TextEditingController _controlador = TextEditingController();
   final ScrollController _scroll = ScrollController();
-  final List<_Mensaje> _mensajes = [];
-  bool _cargandoHistorial = true;
+  // Ya no se carga historial; se deja en false para la vista.
+  final bool _cargandoHistorial = false;
   bool _enviando = false;
 
   @override
   void initState() {
     super.initState();
     _servicio = AiService(apiClient: widget.apiClient);
-    _cargarHistorial();
+    // Si entró otro usuario, la conversación anterior no se le muestra.
+    final idUsuario = context.read<AuthService>().currentUser?.idUsuario;
+    if (_duenoConversacion != idUsuario) {
+      _mensajes.clear();
+      _duenoConversacion = idUsuario;
+    }
+    _irAlFinal();
   }
 
   @override
@@ -73,27 +90,25 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
     super.dispose();
   }
 
-  Future<void> _cargarHistorial() async {
-    try {
-      final items = await _servicio.historial();
-      if (!mounted) return;
-      setState(() {
-        for (final item in items) {
-          _mensajes.add(_Mensaje(esCliente: true, texto: item.mensaje));
-          _mensajes.add(_Mensaje(esCliente: false, texto: item.respuesta));
-        }
-        _cargandoHistorial = false;
-      });
-      _irAlFinal();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _cargandoHistorial = false);
+  /// Últimos intercambios completos (pregunta + respuesta sin error).
+  List<ChatHistoryItem> _intercambiosRecientes() {
+    final pares = <ChatHistoryItem>[];
+    for (var i = 0; i < _mensajes.length - 1; i++) {
+      final pregunta = _mensajes[i];
+      final respuesta = _mensajes[i + 1];
+      if (pregunta.esCliente && !respuesta.esCliente && !respuesta.esError) {
+        pares.add(ChatHistoryItem(mensaje: pregunta.texto, respuesta: respuesta.texto));
+      }
     }
+    return pares.length > _intercambiosContexto
+        ? pares.sublist(pares.length - _intercambiosContexto)
+        : pares;
   }
 
   Future<void> _enviar([String? texto]) async {
     final mensaje = (texto ?? _controlador.text).trim();
     if (mensaje.isEmpty || _enviando) return;
+    final historial = _intercambiosRecientes();
     setState(() {
       _mensajes.add(_Mensaje(esCliente: true, texto: mensaje));
       _controlador.clear();
@@ -101,37 +116,28 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
     });
     _irAlFinal();
     try {
-      final respuesta = await _servicio.enviar(mensaje);
-      if (!mounted) return;
-      setState(() {
-        _mensajes.add(
-          _Mensaje(
-            esCliente: false,
-            texto: respuesta.respuesta,
-            tarjetas: respuesta.tarjetas,
-          ),
-        );
-        _enviando = false;
-      });
+      final respuesta = await _servicio.enviar(mensaje, historial: historial);
+      // La respuesta se guarda aunque el panel ya se haya cerrado.
+      _mensajes.add(
+        _Mensaje(
+          esCliente: false,
+          texto: respuesta.respuesta,
+          tarjetas: respuesta.tarjetas,
+        ),
+      );
     } on AiServiceException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _mensajes.add(_Mensaje(esCliente: false, texto: e.message, esError: true));
-        _enviando = false;
-      });
+      _mensajes.add(_Mensaje(esCliente: false, texto: e.message, esError: true));
     } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _mensajes.add(
-          const _Mensaje(
-            esCliente: false,
-            texto: 'No pude responder en este momento. Intenta de nuevo en unos minutos.',
-            esError: true,
-          ),
-        );
-        _enviando = false;
-      });
+      _mensajes.add(
+        const _Mensaje(
+          esCliente: false,
+          texto: 'No pude responder en este momento. Intenta de nuevo en unos minutos.',
+          esError: true,
+        ),
+      );
     }
+    if (!mounted) return;
+    setState(() => _enviando = false);
     _irAlFinal();
   }
 

@@ -14,6 +14,9 @@
 //   - guardarArchivo(): descarga el blob con el nombre real del archivo.
 // El token JWT lo agrega el JwtInterceptor global. El backend expone el
 // nombre real del archivo en la cabecera Content-Disposition.
+// MODIFICADO (chat por sesión): la conversación y el reporte en pantalla se
+// guardan aquí (memoria), así siguen al ir a Inventario, Productos, etc. y
+// volver; solo se borran al recargar o cerrar la página.
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -145,6 +148,13 @@ export interface ReporteConvencional {
   resultado: ResultadoConsulta;
 }
 
+// NUEVO: mensaje del chat tal como se muestra (vive en el servicio).
+export interface MensajeChatGestion {
+  esUsuario: boolean;
+  partes: { texto: string; negrita: boolean }[];
+  error: boolean;
+}
+
 // Alias mínimo para no importar HttpResponse<Blob> en cada componente.
 export type HttpEventBlobResponse = HttpResponse<Blob>;
 
@@ -153,6 +163,10 @@ export type HttpEventBlobResponse = HttpResponse<Blob>;
 })
 export class AssistantAdminService {
   private apiUrl = environment.apiUrl;
+
+  // NUEVO: conversación abierta y reporte mostrado (se pierden al recargar).
+  readonly mensajes: MensajeChatGestion[] = [];
+  reporteActivo: ReporteDetalle | ReporteGenerado | null = null;
 
   constructor(private http: HttpClient) {}
 

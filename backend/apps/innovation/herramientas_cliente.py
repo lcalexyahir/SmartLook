@@ -16,8 +16,13 @@
 # marca con una talla. Por eso los valores se validan contra las tablas reales,
 # lo desconocido se informa al modelo (no descarta todo) y, si no hay
 # coincidencia exacta, se relajan algunos filtros avisando cuáles.
+#
+# MODIFICADO (recomendaciones variadas): entre las prendas que coinciden igual
+# de bien se elige al azar, y por defecto se muestran 3. Así una misma
+# pregunta ("recomiéndame una polera") no devuelve siempre las mismas.
 
 import logging
+import random
 import re
 import unicodedata
 from decimal import Decimal, InvalidOperation
@@ -38,7 +43,7 @@ from apps.sales.models import Order
 
 logger = logging.getLogger(__name__)
 
-LIMITE_DEFECTO = 6
+LIMITE_DEFECTO = 3
 LIMITE_MAXIMO = 8
 MAX_OPCIONES_INFORMADAS = 15
 ORDEN_TALLAS = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"]
@@ -362,14 +367,10 @@ def _seleccionar(filas, f):
     if f["texto"] and lista:
         mejor = max(d["puntos"] for d in lista)
         lista = [d for d in lista if d["puntos"] == mejor]
-    return sorted(
-        lista,
-        key=lambda d: (
-            -d["puntos"],
-            0 if d["r"]["temporada_vigente"] else 1,
-            _norm(d["r"]["nombre"]),
-        ),
-    )
+    # Al azar entre las que coinciden igual de bien: cada consulta muestra
+    # una selección distinta del catálogo.
+    random.shuffle(lista)
+    return sorted(lista, key=lambda d: -d["puntos"])
 
 
 def _hay_otros_filtros(filtros):
@@ -559,7 +560,10 @@ HERRAMIENTAS_CLIENTE = [
                 },
                 "limite": {
                     "type": "integer",
-                    "description": "Cantidad máxima de prendas a mostrar (1 a 8).",
+                    "description": (
+                        "Cantidad de prendas a mostrar (1 a 8). Para recomendar usa 3; "
+                        "más solo si el cliente pide ver más opciones."
+                    ),
                 },
             },
         },
@@ -641,8 +645,13 @@ def prompt_sistema_cliente():
         "exacta con esos datos y que estas son las opciones más cercanas.\n"
         "- Si el resultado trae prendas, nunca digas que no hay disponibles. Si no "
         "trae ninguna, dilo y sugiere cambiar un filtro.\n"
-        "- Para recomendar, prefiere las prendas de la temporada vigente y ofrece "
-        "2 o 3 opciones con nombre, precio y sucursales con stock.\n"
+        "- Para recomendar, presenta las 3 prendas del resultado (o las que haya) "
+        "con su nombre exacto, precio, tallas y colores. Nombra todas, no solo "
+        "una o dos.\n"
+        "- Si el cliente pide un color, talla, marca o categoría, búscalo con ese "
+        "filtro (por ejemplo, poleras negras: texto 'polera' y color 'negro').\n"
+        "- Si pregunta qué talla le queda, dile qué tallas hay de la prenda y "
+        "pregúntale qué talla usa normalmente; no inventes tablas de medidas.\n"
         "- Solo respondes sobre la tienda, sus prendas, sucursales y los pedidos "
         "del propio cliente. Si preguntan otra cosa, indícalo con amabilidad.\n"
         "- No pidas ni menciones datos personales.\n"

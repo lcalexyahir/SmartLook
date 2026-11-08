@@ -3,22 +3,18 @@
 // NUEVO (CU18/CU19): globo de chat flotante del asistente virtual.
 // Se coloca solo en el catálogo (no en el layout) y únicamente lo ve un
 // usuario con sesión iniciada como CLIENTE.
+// MODIFICADO (chat por sesión): los mensajes se guardan en AssistantService
+// (memoria): siguen ahí al moverse por la web y se borran al recargar o cerrar
+// la página. Ya no se carga el historial guardado en el servidor.
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { AssistantService, TarjetaPrenda } from '../../services/assistant.service';
-
-interface ParteTexto {
-  texto: string;
-  negrita: boolean;
-}
-
-interface MensajeChat {
-  autor: 'cliente' | 'asistente';
-  partes: ParteTexto[];
-  tarjetas: TarjetaPrenda[];
-  error: boolean;
-}
+import {
+  AssistantService,
+  MensajeChat,
+  ParteTexto,
+  TarjetaPrenda
+} from '../../services/assistant.service';
 
 @Component({
   selector: 'app-chat-bubble',
@@ -31,11 +27,10 @@ export class ChatBubbleComponent implements OnInit {
   visible = false;
   abierto = false;
   cargando = false;
+  // Se mantiene por compatibilidad con la plantilla (ya no se carga historial).
   cargandoHistorial = false;
-  private historialCargado = false;
 
   entrada = '';
-  mensajes: MensajeChat[] = [];
   readonly maxCaracteres = 500;
   readonly sugerencias = [
     'Recomiéndame una polera',
@@ -50,19 +45,19 @@ export class ChatBubbleComponent implements OnInit {
     private router: Router
   ) {}
 
+  /** Conversación abierta (vive en el servicio, no en el componente). */
+  get mensajes(): MensajeChat[] {
+    return this.assistantService.mensajes;
+  }
+
   ngOnInit(): void {
     this.visible = this.authService.esCliente();
   }
 
   alternar(): void {
     this.abierto = !this.abierto;
-    if (!this.abierto) {
-      return;
-    }
-    if (this.historialCargado) {
+    if (this.abierto) {
       this.irAlFinal();
-    } else {
-      this.cargarHistorial();
     }
   }
 
@@ -71,12 +66,13 @@ export class ChatBubbleComponent implements OnInit {
     if (!mensaje || this.cargando) {
       return;
     }
+    const historial = this.assistantService.intercambiosRecientes();
     this.mensajes.push(this.crearMensaje('cliente', mensaje));
     this.entrada = '';
     this.cargando = true;
     this.irAlFinal();
 
-    this.assistantService.enviar(mensaje).subscribe({
+    this.assistantService.enviar(mensaje, historial).subscribe({
       next: (respuesta) => {
         this.mensajes.push(
           this.crearMensaje('asistente', respuesta.respuesta, respuesta.tarjetas)
@@ -112,34 +108,13 @@ export class ChatBubbleComponent implements OnInit {
     this.router.navigate(['/catalog', t.id_producto]);
   }
 
-  private cargarHistorial(): void {
-    this.cargandoHistorial = true;
-    this.assistantService.historial().subscribe({
-      next: (filas) => {
-        const previos: MensajeChat[] = [];
-        for (const fila of filas) {
-          previos.push(this.crearMensaje('cliente', fila.mensaje));
-          previos.push(this.crearMensaje('asistente', fila.respuesta));
-        }
-        this.mensajes = [...previos, ...this.mensajes];
-        this.historialCargado = true;
-        this.cargandoHistorial = false;
-        this.irAlFinal();
-      },
-      error: () => {
-        this.historialCargado = true;
-        this.cargandoHistorial = false;
-      }
-    });
-  }
-
   private crearMensaje(
     autor: 'cliente' | 'asistente',
     texto: string,
     tarjetas: TarjetaPrenda[] = [],
     error = false
   ): MensajeChat {
-    return { autor, partes: this.aPartes(texto), tarjetas, error };
+    return { autor, texto, partes: this.aPartes(texto), tarjetas, error };
   }
 
   // El modelo responde con un Markdown mínimo: viñetas ("* ", "- ") y **negrita**.

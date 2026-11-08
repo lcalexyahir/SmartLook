@@ -15,6 +15,12 @@
 #
 # Devuelve el texto y las tarjetas de prendas para mostrarlas en la interfaz.
 # Si ningún proveedor de IA responde, lanza ServicioIANoDisponible.
+#
+# MODIFICADO (chat por sesión): el contexto de la conversación ya no sale de
+# la base de datos sino de los últimos intercambios que manda la app/web de la
+# conversación abierta. Así, al recargar la página o cerrar la app el chat
+# empieza limpio también para el asistente. Cada intercambio se sigue
+# guardando en ChatbotConversation (registro de uso).
 
 import json
 import logging
@@ -81,17 +87,26 @@ def _instrucciones():
     )
 
 
-def _historial(cliente):
-    """Últimos intercambios del cliente, del más antiguo al más nuevo."""
-    filas = list(
-        ChatbotConversation.objects.filter(id_cliente=cliente).order_by(
-            "-fecha_mensaje", "-id_conversacion"
-        )[:INTERCAMBIOS_PREVIOS]
-    )
+def _historial(previos):
+    """Últimos intercambios de la conversación abierta (los manda el cliente).
+
+    Recibe una lista de {"mensaje": ..., "respuesta": ...}, del más antiguo al
+    más nuevo. Lo que no tenga ese formato se descarta.
+    """
+    if not isinstance(previos, list):
+        return []
     mensajes = []
-    for f in reversed(filas):
-        mensajes.append({"role": "user", "content": f.mensaje_usuario})
-        mensajes.append({"role": "assistant", "content": f.respuesta_bot[:600]})
+    for item in previos[-INTERCAMBIOS_PREVIOS:]:
+        if not isinstance(item, dict):
+            continue
+        pregunta = item.get("mensaje")
+        respuesta = item.get("respuesta")
+        if not isinstance(pregunta, str) or not isinstance(respuesta, str):
+            continue
+        if not pregunta.strip() or not respuesta.strip():
+            continue
+        mensajes.append({"role": "user", "content": pregunta[:MAX_CARACTERES_MENSAJE]})
+        mensajes.append({"role": "assistant", "content": respuesta[:600]})
     return mensajes
 
 
@@ -120,8 +135,11 @@ def _ejecutar_consultas(llamadas, cliente):
     return resultados, tarjetas
 
 
-def responder_cliente(cliente, mensaje):
-    """Responde el mensaje del cliente y guarda el intercambio."""
+def responder_cliente(cliente, mensaje, previos=None):
+    """Responde el mensaje del cliente y guarda el intercambio.
+
+    [previos] son los últimos intercambios de la conversación abierta.
+    """
     mensaje = (mensaje or "").strip()
     if not mensaje:
         raise MensajeInvalido("Escribe tu consulta.")
@@ -132,7 +150,7 @@ def responder_cliente(cliente, mensaje):
 
     conversacion = (
         [{"role": "system", "content": _instrucciones()}]
-        + _historial(cliente)
+        + _historial(previos)
         + [{"role": "user", "content": mensaje}]
     )
 

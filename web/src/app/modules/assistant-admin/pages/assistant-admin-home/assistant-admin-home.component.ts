@@ -6,11 +6,15 @@
 // MODIFICADO (Fase 3 - CU13): el resultado muestra su gráfico (Chart.js) y,
 // si en el chat se pide "descárgamelo en PDF / Excel / HTML", el archivo se
 // descarga solo (el backend indica qué reporte y en qué formato).
+// MODIFICADO (chat por sesión): los mensajes y el reporte en pantalla se
+// guardan en AssistantAdminService; la conversación sigue al ir a otra
+// pantalla y volver, y solo se borra al recargar o cerrar la página.
 import { Component, ElementRef, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import {
   AssistantAdminService,
   ExportacionPedida,
   FormatoReporte,
+  MensajeChatGestion,
   ReporteDetalle,
   ReporteGenerado,
   ReporteResumen
@@ -21,11 +25,7 @@ interface ParteTexto {
   negrita: boolean;
 }
 
-interface MensajeChat {
-  esUsuario: boolean;
-  partes: ParteTexto[];
-  error: boolean;
-}
+type MensajeChat = MensajeChatGestion;
 
 // Tipos mínimos de la Web Speech API (no forman parte de lib.dom estable).
 interface SpeechRecognitionEvento {
@@ -52,12 +52,10 @@ export class AssistantAdminHomeComponent implements OnInit, OnDestroy {
   @ViewChild('lista') lista?: ElementRef<HTMLDivElement>;
 
   entrada = '';
-  mensajes: MensajeChat[] = [];
   enviando = false;
   escuchando = false;
   reconocimientoDisponible = false;
 
-  reporteActivo: ReporteDetalle | ReporteGenerado | null = null;
   descargando: FormatoReporte | null = null;
 
   reportes: ReporteResumen[] = [];
@@ -79,7 +77,22 @@ export class AssistantAdminHomeComponent implements OnInit, OnDestroy {
     private ngZone: NgZone
   ) {}
 
+  /** Conversación abierta (vive en el servicio, no en el componente). */
+  get mensajes(): MensajeChat[] {
+    return this.assistantAdminService.mensajes;
+  }
+
+  /** Reporte en pantalla (también se conserva en el servicio). */
+  get reporteActivo(): ReporteDetalle | ReporteGenerado | null {
+    return this.assistantAdminService.reporteActivo;
+  }
+
+  set reporteActivo(valor: ReporteDetalle | ReporteGenerado | null) {
+    this.assistantAdminService.reporteActivo = valor;
+  }
+
   ngOnInit(): void {
+    this.irAlFinal();
     this.cargarReportes();
     this.iniciarReconocimientoVoz();
   }

@@ -4,6 +4,9 @@
 //   POST /innovation/chatbot/            { mensaje }
 //   GET  /innovation/chatbot/historial/
 // El token JWT lo agrega el interceptor de ApiClient.
+// MODIFICADO (chat por sesión): enviar() manda también los últimos
+// intercambios de la conversación abierta; el asistente solo usa eso como
+// contexto, así al cerrar la app el chat empieza limpio.
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 
@@ -106,12 +109,18 @@ class AiService {
 
   AiService({required this.apiClient});
 
-  /// Envía una consulta y devuelve la respuesta con sus tarjetas de prendas.
-  Future<ChatReply> enviar(String mensaje) async {
+  /// Envía una consulta (con los últimos intercambios de la conversación
+  /// abierta) y devuelve la respuesta con sus tarjetas de prendas.
+  Future<ChatReply> enviar(String mensaje, {List<ChatHistoryItem> historial = const []}) async {
     try {
       final response = await apiClient.dio.post(
         '/innovation/chatbot/',
-        data: {'mensaje': mensaje},
+        data: {
+          'mensaje': mensaje,
+          'historial': historial
+              .map((h) => {'mensaje': h.mensaje, 'respuesta': h.respuesta})
+              .toList(),
+        },
       );
       return ChatReply.fromJson(Map<String, dynamic>.from(response.data as Map));
     } on DioException catch (e) {
