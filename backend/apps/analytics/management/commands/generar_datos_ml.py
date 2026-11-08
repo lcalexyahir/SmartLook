@@ -18,6 +18,10 @@
 #   python manage.py generar_datos_ml
 #   python manage.py generar_datos_ml --empresa moda-andina
 #   python manage.py generar_datos_ml --empresa moda-andina --reemplazar
+#
+# MODIFICADO: --excluir recibe correos separados por coma; esos clientes no
+# reciben compras simuladas (por ejemplo, cuentas nuevas o de prueba).
+#   python manage.py generar_datos_ml --reemplazar --excluir a@gmail.com,b@gmail.com
 
 import random
 from datetime import date, timedelta
@@ -123,6 +127,10 @@ class Command(BaseCommand):
             "--reemplazar", action="store_true",
             help="Borra los datos simulados de la empresa y los vuelve a generar.",
         )
+        parser.add_argument(
+            "--excluir", default="",
+            help="Correos de clientes, separados por coma, que NO reciben compras simuladas.",
+        )
 
     def handle(self, *args, **opciones):
         """Genera los datos de cada empresa elegida."""
@@ -130,9 +138,13 @@ class Command(BaseCommand):
         if meses < 1 or meses > 24:
             raise CommandError("--meses debe estar entre 1 y 24.")
         empresas = self._empresas(opciones.get("empresa"))
+        excluir = self._correos_excluidos(opciones.get("excluir"))
         clientes = list(
-            Cliente.objects.filter(id_usuario__estado="ACTIVO").order_by("id_cliente")
+            Cliente.objects.filter(id_usuario__estado="ACTIVO")
+            .exclude(id_usuario__correo__in=excluir)
+            .order_by("id_cliente")
         )
+        self.stdout.write(f"Clientes con compras simuladas: {len(clientes)}.")
         if not clientes:
             raise CommandError("No hay clientes activos: no se puede simular compras.")
         hoy = date.today()
@@ -159,6 +171,24 @@ class Command(BaseCommand):
                 f"{resumen['clientes']} clientes, {resumen['productos']} prendas del catálogo, "
                 f"{resumen['sucursales']} sucursales, del {desde:%d/%m/%Y} al {hoy:%d/%m/%Y}."
             ))
+
+    def _correos_excluidos(self, texto):
+        """Correos de --excluir (en minúsculas); avisa los que no existen."""
+        correos = sorted({c.strip().lower() for c in (texto or "").split(",") if c.strip()})
+        if not correos:
+            return []
+        encontrados = set(
+            Cliente.objects.filter(id_usuario__correo__in=correos)
+            .values_list("id_usuario__correo", flat=True)
+        )
+        for correo in correos:
+            if correo in encontrados:
+                self.stdout.write(f"Excluido: {correo}")
+            else:
+                self.stdout.write(self.style.WARNING(
+                    f"No existe un cliente con el correo {correo} (se ignora)."
+                ))
+        return correos
 
     def _empresas(self, filtro):
         """Empresas a procesar según --empresa."""
