@@ -7,6 +7,10 @@
 // computadora no cambia): botón de enviar visible, botones de descarga dentro
 // de la tarjeta e indicadores de 2 en 2. La pantalla de Reportes usa estos
 // mismos estilos para el resultado.
+// MODIFICADO (CU13 - tabla visible): los bloques del resultado ya no se
+// encogen (flex-shrink: 0). Antes, con mucho contenido (tabla grande, notas y
+// "Reportes recientes"), la tabla quedaba aplastada a 0 de alto y solo se veía
+// una línea. Ahora la tabla se ve completa y la columna hace scroll.
 
 $primary: #1a1a2e;
 $accent: #0f3460;
@@ -221,6 +225,11 @@ $line: #e2e5ec;
   padding-right: 0.25rem;
   min-width: 0;
   scrollbar-gutter: stable;
+
+  // MODIFICADO: ningún bloque se encoge; si no cabe, la columna hace scroll.
+  > * {
+    flex-shrink: 0;
+  }
 }
 
 .result-header {
@@ -304,6 +313,8 @@ $line: #e2e5ec;
   border: 1px solid $line;
   border-radius: 14px;
   overflow: auto;
+  // MODIFICADO: la tabla nunca se aplasta (antes quedaba en 0 de alto).
+  flex-shrink: 0;
 }
 
 table {

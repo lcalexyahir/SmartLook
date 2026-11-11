@@ -18,8 +18,20 @@
 #   exportaciones.
 # - Los reportes por prenda o categoría avisan cuántas ventas pagadas no
 #   tienen prendas registradas (no se pueden desglosar).
+#
+# MODIFICADO (CU13 - más vendidos por sucursal):
+# - Periodo "últimos N meses" (ultimos_3_meses, trimestre, semestre) en todas
+#   las consultas: antes, si la IA lo enviaba así, se usaba el periodo por
+#   defecto (por ejemplo "este mes").
+# - productos_mas_vendidos acepta por_sucursal=true o por_empresa=true: el
+#   top N de CADA sucursal o de CADA empresa en una sola consulta (antes solo
+#   un ranking general o el de una sucursal).
+# - productos_mas_vendidos cuenta por VARIANTE (prenda + color + talla): si
+#   la variante negra vende más que la blanca, se ve cada una en su fila.
 
+import calendar
 import logging
+import re
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import date, timedelta
@@ -217,6 +229,29 @@ def _dinero(valor):
     """Monto como float con dos decimales."""
     return round(float(valor or 0), 2)
 
+_PERIODO_MESES = re.compile(r"ultim\w*\s+(\d{1,2})\s+mes")
+
+def _meses_de_periodo(texto):
+    """NUEVO: cantidad de meses de un periodo 'últimos N meses' (o None)."""
+    texto = _norm(texto).replace("_", " ")
+    if texto in ("trimestre", "ultimo trimestre"):
+        return 3
+    if texto in ("semestre", "ultimo semestre"):
+        return 6
+    coincidencia = _PERIODO_MESES.search(texto)
+    if coincidencia:
+        return min(max(int(coincidencia.group(1)), 1), MAX_MESES)
+    return None
+
+def _meses_atras(fecha, meses):
+    """NUEVO: la misma fecha N meses antes (o el último día válido de ese mes)."""
+    mes = fecha.month - meses
+    anio = fecha.year
+    while mes < 1:
+        mes += 12
+        anio -= 1
+    return date(anio, mes, min(fecha.day, calendar.monthrange(anio, mes)[1]))
+
 def _rango(args, defecto="hoy", hoy=None):
     """Devuelve (desde, hasta, etiqueta) según periodo, desde y hasta.
 
@@ -235,6 +270,12 @@ def _rango(args, defecto="hoy", hoy=None):
         else:
             etiqueta = f"hasta el {_fmt(hasta)}"
         return desde, hasta, etiqueta
+
+    # NUEVO: "últimos N meses" (hasta hoy).
+    meses = _meses_de_periodo(args.get("periodo"))
+    if meses:
+        desde = _meses_atras(hoy, meses)
+        return desde, hoy, f"los últimos {meses} meses ({_fmt(desde)} al {_fmt(hoy)})"
 
     periodo = ALIAS_PERIODO.get(_norm(args.get("periodo")), defecto)
     if periodo == "ayer":
@@ -791,6 +832,8 @@ def _movimiento(tipo, clave, canal, empresa, fecha, sucursal, metodo, total, **e
         "prenda": None,
         "unidades": 0,
         "conflicto": False,
+        "color": None,
+        "talla": None,
     }
     fila.update(extra)
     return fila
@@ -872,10 +915,13 @@ def _movimientos_por_prenda(desde, hasta, sucursal, canal, filtro):
     """Líneas vendidas (POS sin anuladas y pedidos pagados) y prendas devueltas."""
     filas = []
     relacion_prenda = "id_variante__id_producto__id_categoria"
+    # NUEVO: color y talla de la variante (ranking por variante).
+    relaciones_variante = ("id_variante__id_color", "id_variante__id_talla")
     if canal in (None, "pos"):
         qs = _por_empresa(
             PosSaleItem.objects.exclude(id_venta__estado="ANULADA").select_related(
-                "id_venta__id_sucursal__id_empresa", "id_venta__id_empresa", relacion_prenda
+                "id_venta__id_sucursal__id_empresa", "id_venta__id_empresa", relacion_prenda,
+                *relaciones_variante,
             ),
             "id_venta__id_empresa",
         )
@@ -891,12 +937,14 @@ def _movimientos_por_prenda(desde, hasta, sucursal, canal, filtro):
                     v.get_metodo_pago_display(), _dinero(it.subtotal),
                     categoria=p.id_categoria.nombre, prenda=p.nombre,
                     unidades=it.cantidad, conflicto=v.estado == "EN_CONFLICTO",
+                    color=it.id_variante.id_color.nombre, talla=it.id_variante.id_talla.nombre,
                 )
             )
     if canal in (None, "web"):
         qs = _por_empresa(
             OrderItem.objects.filter(id_orden__estado__in=ESTADOS_PAGADOS).select_related(
-                "id_orden__id_sucursal__id_empresa", "id_orden__id_empresa", relacion_prenda
+                "id_orden__id_sucursal__id_empresa", "id_orden__id_empresa", relacion_prenda,
+                *relaciones_variante,
             ),
             "id_orden__id_empresa",
         )
@@ -912,6 +960,7 @@ def _movimientos_por_prenda(desde, hasta, sucursal, canal, filtro):
                     o.get_metodo_pago_display() if o.metodo_pago else "Sin método",
                     _dinero(it.subtotal),
                     categoria=p.id_categoria.nombre, prenda=p.nombre, unidades=it.cantidad,
+                    color=it.id_variante.id_color.nombre, talla=it.id_variante.id_talla.nombre,
                 )
             )
     qs = _por_empresa(
@@ -924,6 +973,8 @@ def _movimientos_por_prenda(desde, hasta, sucursal, canal, filtro):
             "id_devolucion__id_orden",
             f"id_venta_item__{relacion_prenda}",
             f"id_orden_item__{relacion_prenda}",
+            *[f"id_venta_item__{r}" for r in relaciones_variante],
+            *[f"id_orden_item__{r}" for r in relaciones_variante],
         ),
         "id_devolucion__id_empresa",
     )
@@ -961,6 +1012,7 @@ def _movimientos_por_prenda(desde, hasta, sucursal, canal, filtro):
                 _fecha_local(d.fecha_completado), _nombre_sucursal(d.id_sucursal),
                 metodo, -_dinero(di.monto_reembolso),
                 categoria=p.id_categoria.nombre, prenda=p.nombre, unidades=-di.cantidad,
+                color=linea.id_variante.id_color.nombre, talla=linea.id_variante.id_talla.nombre,
             )
         )
     return filas
@@ -1129,8 +1181,37 @@ def _por_prenda(movimientos):
         acumulado[1] += m["total"]
     return por_prenda
 
+def _por_variante(movimientos):
+    """NUEVO: {(prenda, color, talla): [unidades netas, monto neto]} con ventas netas > 0."""
+    por_variante = {}
+    for m in movimientos:
+        clave = (m["prenda"], m["color"] or "-", m["talla"] or "-")
+        acumulado = por_variante.setdefault(clave, [0, 0.0])
+        acumulado[0] += m["unidades"]
+        acumulado[1] += m["total"]
+    return {k: v for k, v in por_variante.items() if v[0] > 0}
+
+def _ranking_variantes(vendidas, limite):
+    """NUEVO: las variantes más vendidas (más unidades, luego más monto)."""
+    return sorted(vendidas.items(), key=lambda x: (-x[1][0], -x[1][1], x[0]))[:limite]
+
+def _etiqueta_variante(clave):
+    """NUEVO: texto corto de una variante para el gráfico, p. ej. 'Polera · Negro · M'."""
+    prenda, color, talla = clave
+    return f"{prenda} · {color} · {talla}"
+
+_COLUMNAS_VARIANTE = [
+    _col("Prenda"), _col("Color"), _col("Talla"),
+    _col("Unidades", "numero"), _col("Total (Bs)", "dinero"),
+]
+_NOTA_VARIANTE = "Cada fila es una variante (prenda, color y talla)."
+
 def productos_mas_vendidos(args, usuario):
-    """Ranking de prendas por unidades vendidas (netas de devoluciones)."""
+    """Ranking de variantes (prenda, color y talla) por unidades netas de devoluciones.
+
+    MODIFICADO: cuenta por variante y acepta por_empresa / por_sucursal para
+    sacar el top de CADA empresa o de CADA sucursal.
+    """
     rango = _rango(args, "mes")
     sucursal, nota = _sucursal(args, usuario)
     filtro, notas = _filtros(args)
@@ -1139,15 +1220,27 @@ def productos_mas_vendidos(args, usuario):
     movimientos = [] if filtro["invalido"] else _cargar_movimientos(
         rango, sucursal, None, filtro, por_prenda=True
     )
-    por_prenda = {k: v for k, v in _por_prenda(movimientos).items() if v[0] > 0}
-    ranking = sorted(por_prenda.items(), key=lambda x: (-x[1][0], -x[1][1], x[0]))[:limite]
+    # NUEVO: top N de cada empresa o de cada sucursal.
+    if _verdadero(args.get("por_empresa")):
+        return _mas_vendidos_por_grupo(
+            rango, sucursal, filtro, notas, limite, movimientos, "empresa", "Empresa"
+        )
+    if _verdadero(args.get("por_sucursal")) and sucursal is None:
+        return _mas_vendidos_por_grupo(
+            rango, sucursal, filtro, notas, limite, movimientos, "sucursal", "Sucursal"
+        )
+    vendidas = _por_variante(movimientos)
+    ranking = _ranking_variantes(vendidas, limite)
 
     kpis = [
-        _kpi("Prendas distintas vendidas", len(por_prenda)),
-        _kpi("Unidades vendidas (netas)", sum(u for u, _ in por_prenda.values())),
-        _kpi("Total neto", round(sum(t for _, t in por_prenda.values()), 2), "dinero"),
+        _kpi("Prendas distintas vendidas", len({clave[0] for clave in vendidas})),
+        _kpi("Variantes vendidas", len(vendidas)),
+        _kpi("Unidades vendidas (netas)", sum(u for u, _ in vendidas.values())),
+        _kpi("Total neto", round(sum(t for _, t in vendidas.values()), 2), "dinero"),
     ]
-    if not ranking:
+    if ranking:
+        notas.append(_NOTA_VARIANTE)
+    else:
         notas.append("No hay ventas de prendas en ese periodo.")
     notas.extend(_nota_conflictos(movimientos))
     if not filtro["invalido"]:
@@ -1156,14 +1249,67 @@ def productos_mas_vendidos(args, usuario):
         f"Prendas más vendidas (top {limite})",
         _subtitulo(rango[2], sucursal, _extra_filtros(filtro)),
         kpis,
-        [_col("Puesto", "numero"), _col("Prenda"), _col("Unidades", "numero"), _col("Total (Bs)", "dinero")],
-        [[i, nombre, u, round(t, 2)] for i, (nombre, (u, t)) in enumerate(ranking, start=1)],
+        [_col("Puesto", "numero")] + _COLUMNAS_VARIANTE,
+        [
+            [i, prenda, color, talla, u, round(t, 2)]
+            for i, ((prenda, color, talla), (u, t)) in enumerate(ranking, start=1)
+        ],
         notas,
         _grafico(
             "barh",
             "Unidades vendidas",
-            [nombre for nombre, _ in ranking[:MAX_BARRAS]],
+            [_etiqueta_variante(clave) for clave, _ in ranking[:MAX_BARRAS]],
             [("Unidades", [u for _, (u, _t) in ranking[:MAX_BARRAS]])],
+        ),
+    )
+
+def _mas_vendidos_por_grupo(rango, sucursal, filtro, notas, limite, movimientos, campo, nombre_grupo):
+    """NUEVO: ranking de variantes de CADA empresa o sucursal (unidades netas).
+
+    campo es "empresa" o "sucursal" (la clave del movimiento) y nombre_grupo
+    el texto de la columna ("Empresa" o "Sucursal").
+    """
+    por_grupo = {}
+    for m in movimientos:
+        por_grupo.setdefault(m[campo] or f"Sin {campo}", []).append(m)
+    filas, unidades_grupo, total_neto = [], {}, 0.0
+    for nombre in sorted(por_grupo):
+        vendidas = _por_variante(por_grupo[nombre])
+        if not vendidas:
+            continue
+        for puesto, ((prenda, color, talla), (u, t)) in enumerate(
+            _ranking_variantes(vendidas, limite), start=1
+        ):
+            filas.append([nombre, puesto, prenda, color, talla, u, round(t, 2)])
+        unidades_grupo[nombre] = sum(u for u, _ in vendidas.values())
+        total_neto += sum(t for _, t in vendidas.values())
+
+    plural = "Empresas" if campo == "empresa" else "Sucursales"
+    kpis = [
+        _kpi(f"{plural} con ventas", len(unidades_grupo)),
+        _kpi("Unidades vendidas (netas)", sum(unidades_grupo.values())),
+        _kpi("Total neto", round(total_neto, 2), "dinero"),
+    ]
+    if filas:
+        notas.append(_NOTA_VARIANTE)
+    else:
+        notas.append("No hay ventas de prendas en ese periodo.")
+    notas.extend(_nota_conflictos(movimientos))
+    if not filtro["invalido"]:
+        notas.extend(_nota_sin_detalle(rango, sucursal))
+    visibles = list(unidades_grupo.items())[:MAX_BARRAS]
+    return _resultado(
+        f"Prendas más vendidas por {campo} (top {limite} de cada una)",
+        _subtitulo(rango[2], sucursal, _extra_filtros(filtro)),
+        kpis,
+        [_col(nombre_grupo), _col("Puesto", "numero")] + _COLUMNAS_VARIANTE,
+        filas,
+        notas,
+        _grafico(
+            "bar",
+            f"Unidades vendidas por {campo}",
+            [nombre for nombre, _ in visibles],
+            [("Unidades", [u for _, u in visibles])],
         ),
     )
 
@@ -1962,8 +2108,8 @@ def resumen_general(args, usuario):
 _PERIODO = {
     "type": "string",
     "description": (
-        "hoy, ayer, semana, semana_pasada, mes, mes_pasado, anio o todo. "
-        "Se ignora si das desde/hasta."
+        "hoy, ayer, semana, semana_pasada, mes, mes_pasado, anio, todo o "
+        "ultimos_N_meses (ej. ultimos_3_meses). Se ignora si das desde/hasta."
     ),
 }
 _DESDE = {"type": "string", "description": "Fecha inicial AAAA-MM-DD (opcional)."}
@@ -2035,6 +2181,20 @@ HERRAMIENTAS_ADMIN = [
                 "sucursal": _SUCURSAL,
                 "categoria": _CATEGORIA,
                 "limite": _LIMITE,
+                "por_sucursal": {
+                    "type": "boolean",
+                    "description": (
+                        "true si pide el ranking por sucursal o agrupado por sucursal: "
+                        "devuelve el top de CADA sucursal en una sola consulta."
+                    ),
+                },
+                "por_empresa": {
+                    "type": "boolean",
+                    "description": (
+                        "true si pide el ranking por empresa o de cada empresa: "
+                        "devuelve el top de CADA empresa en una sola consulta."
+                    ),
+                },
             },
         },
     },

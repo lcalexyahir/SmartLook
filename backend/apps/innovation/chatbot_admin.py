@@ -19,6 +19,15 @@
 #   parámetro 'empresa' solo se envía al SUPER_ADMIN, el historial es más
 #   corto, se limita la respuesta máxima (el proveedor la suma al cupo) y la
 #   segunda llamada (redactar la respuesta) lleva solo el resumen.
+#
+# MODIFICADO (CU13 - periodos relativos):
+# - "Últimos N meses" (con número o en letras), "último mes", "último
+#   trimestre", "último semestre" y "último año": el periodo lo arma el
+#   sistema con la fecha real del servidor e ignora las fechas que calculó la
+#   IA (a veces ponía un año equivocado y el reporte salía vacío).
+# - Las prendas más vendidas "por sucursal" / "de cada sucursal" usan
+#   por_sucursal=true y "por empresa" / "de cada empresa", por_empresa=true;
+#   el sistema lo aplica aunque la IA no lo haya elegido.
 
 import copy
 import json
@@ -74,6 +83,24 @@ _PIDE_DATOS = re.compile(
     r"empresa\w*|conflict\w*|anulad\w*|semana\w*|mes|meses|ano|anio|hoy|ayer|resumen|"
     r"vestidor|compar\w*|ingreso\w*)\b"
 )
+
+# NUEVO: periodos relativos que el sistema resuelve con la fecha real.
+_NUMEROS = {
+    "un": 1, "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6,
+    "siete": 7, "ocho": 8, "nueve": 9, "diez": 10, "once": 11, "doce": 12,
+}
+_ULTIMOS_N_MESES = re.compile(
+    r"\bultim\w*\s+(\d{1,2}|" + "|".join(_NUMEROS) + r")\s+mes"
+)
+_ULTIMO_PERIODO = re.compile(r"\bultim[oa]s?\s+(mes|trimestre|semestre|ano|anio)\b")
+_MESES_DEL_PERIODO = {"mes": 1, "trimestre": 3, "semestre": 6, "ano": 12, "anio": 12}
+# NUEVO: ranking de prendas de cada empresa o de cada sucursal.
+_POR_EMPRESA = re.compile(r"\b(por|cada)\s+(empresa|tienda)s?\b")
+_POR_SUCURSAL = re.compile(r"\b(por|cada)\s+sucursal(es)?\b")
+# Parámetros que acepta cada consulta (para saber si usa periodo o meses).
+_PARAMETROS = {
+    h["name"]: set(h["parameters"]["properties"]) for h in ca.HERRAMIENTAS_ADMIN
+}
 
 SIN_CONSULTA = {
     "name": "sin_consulta",
@@ -199,6 +226,13 @@ def _instrucciones(usuario):
         "cada consulta ya tiene uno por defecto. Las fechas relativas ('septiembre', "
         "'la semana pasada', 'del 1 al 15') conviértelas a desde/hasta con formato "
         "AAAA-MM-DD; un mes sin año es del año actual (o del anterior si aún no llegó).\n"
+        "- 'Últimos N meses', 'último mes', 'último trimestre', 'último semestre' o "
+        "'último año': NO uses desde/hasta; usa periodo='ultimos_N_meses' (ej. "
+        "ultimos_3_meses; último año = ultimos_12_meses). En comparativo_sucursales usa "
+        "meses=N.\n"
+        "- Prendas más vendidas 'por sucursal' o 'de cada sucursal': "
+        "productos_mas_vendidos con por_sucursal=true; 'por empresa' o 'de cada "
+        "empresa': productos_mas_vendidos con por_empresa=true (una sola consulta).\n"
         "- Si pide descargar o exportar, usa exportar_reporte (junto con la consulta si "
         "también pide datos nuevos).\n"
         "- Si la solicitud es ambigua, incompleta o no soportada, usa pedir_aclaracion.\n"
@@ -309,6 +343,60 @@ def _respuesta(texto, proveedor, modelo, resultados=None, exportar=None, aclarac
         "modelo": modelo,
     }
 
+def _meses_relativos(mensaje):
+    """NUEVO: meses de un periodo relativo del mensaje ('últimos 5 meses' = 5), o None."""
+    texto = _norm(mensaje)
+    coincidencia = _ULTIMOS_N_MESES.search(texto)
+    if coincidencia:
+        valor = coincidencia.group(1)
+        meses = int(valor) if valor.isdigit() else _NUMEROS[valor]
+        return min(max(meses, 1), ca.MAX_MESES)
+    coincidencia = _ULTIMO_PERIODO.search(texto)
+    if coincidencia:
+        return _MESES_DEL_PERIODO[coincidencia.group(1)]
+    return None
+
+def _aplicar_periodo_relativo(llamadas, mensaje):
+    """NUEVO: con un periodo relativo en el mensaje, el periodo lo fija el sistema.
+
+    Se quitan desde/hasta calculados por la IA y se usa 'ultimos_N_meses'
+    (o meses=N en el comparativo), que consultas_admin resuelve con la fecha
+    real del servidor.
+    """
+    meses = _meses_relativos(mensaje)
+    if not meses:
+        return llamadas
+    for llamada in llamadas:
+        args = llamada["argumentos"] if isinstance(llamada["argumentos"], dict) else {}
+        parametros = _PARAMETROS.get(llamada["nombre"], set())
+        if "periodo" in parametros:
+            args.pop("desde", None)
+            args.pop("hasta", None)
+            args["periodo"] = f"ultimos_{meses}_meses"
+        elif "meses" in parametros:
+            args.pop("desde", None)
+            args.pop("hasta", None)
+            args["meses"] = meses
+        llamada["argumentos"] = args
+    return llamadas
+
+def _aplicar_agrupacion(llamadas, mensaje):
+    """NUEVO: 'de cada empresa' o 'por sucursal' en las más vendidas lo fija el sistema."""
+    texto = _norm(mensaje)
+    por_empresa = bool(_POR_EMPRESA.search(texto))
+    por_sucursal = bool(_POR_SUCURSAL.search(texto))
+    for llamada in llamadas:
+        if llamada["nombre"] != "productos_mas_vendidos":
+            continue
+        args = llamada["argumentos"] if isinstance(llamada["argumentos"], dict) else {}
+        if por_empresa:
+            args["por_empresa"] = True
+            args.pop("por_sucursal", None)
+        elif por_sucursal:
+            args["por_sucursal"] = True
+        llamada["argumentos"] = args
+    return llamadas
+
 def _ejecutar_consultas(llamadas, usuario):
     """Ejecuta las consultas pedidas por el modelo (sin repetir ni pasarse).
 
@@ -382,6 +470,10 @@ def responder_gestion(usuario, mensaje):
     )
     llamadas = r["llamadas"] or []
     consultas = [ll for ll in llamadas if ll["nombre"] in ca.CONSULTAS]
+    # NUEVO: "últimos N meses" se resuelve con la fecha real del servidor.
+    consultas = _aplicar_periodo_relativo(consultas, mensaje)
+    # NUEVO: "de cada empresa" / "por sucursal" en las más vendidas.
+    consultas = _aplicar_agrupacion(consultas, mensaje)
     exportes = [ll for ll in llamadas if ll["nombre"] == EXPORTAR["name"]]
     aclaracion = next((ll for ll in llamadas if ll["nombre"] == ACLARAR["name"]), None)
 
